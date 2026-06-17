@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IGCSE Question Bank (High-Res Image Edition)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        pre::-webkit-scrollbar { height: 8px; }
+        pre::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        
+       /* Displays the image at its natural resolution without stretching */
+        .question-img { 
+            max-width: 100%; 
+            width: auto; 
+            height: auto; 
+            display: block; 
+        }
+        
+        .modal-enter { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans p-6 pb-32">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-900">IGCSE Mathematics Question Bank</h1>
+            <p class="text-gray-500 mt-2">Select questions to instantly compile a learning station, exam, and structured mark scheme.</p>
+        </header>
+
+        <div class="bg-white p-4 rounded-lg shadow-sm border mb-4">
+            <div class="flex justify-between items-end mb-2">
+                <label class="block text-sm font-bold text-gray-700">Search Raw Code & Text</label>
+                <button onclick="clearSearch()" id="clear-search-btn" class="text-[10px] uppercase font-bold tracking-wider text-red-500 hover:text-red-700 transition-colors hidden">Clear Search</button>
+            </div>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input type="text" id="search-input" oninput="handleSearch(event)" placeholder="Search for equations, variables, or LaTeX commands (e.g., 'tikzpicture', 'radius', 'cos')..." class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors">
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg shadow-sm border mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Topic</label>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex gap-2">
+                        <button onclick="tsTopic.selectAll()" class="hover:text-indigo-600 transition-colors">Select All</button>
+                        <button onclick="tsTopic.clear()" class="hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                </div>
+                <div id="filter-topic"></div>
+            </div>
+            
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Sub-Topic</label>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex gap-2">
+                        <button onclick="tsSubtopic.selectAll()" class="hover:text-indigo-600 transition-colors">Select All</button>
+                        <button onclick="tsSubtopic.clear()" class="hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                </div>
+                <div id="filter-subtopic"></div>
+            </div>
+            
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Difficulty</label>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex gap-2">
+                        <button onclick="tsDifficulty.selectAll()" class="hover:text-indigo-600 transition-colors">Select All</button>
+                        <button onclick="tsDifficulty.clear()" class="hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                </div>
+                <div id="filter-difficulty"></div>
+            </div>
+            
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Paper</label>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex gap-2">
+                        <button onclick="tsPaper.selectAll()" class="hover:text-indigo-600 transition-colors">Select All</button>
+                        <button onclick="tsPaper.clear()" class="hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                </div>
+                <div id="filter-paper"></div>
+            </div>
+            
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Year</label>
+                    <div class="text-[10px] uppercase font-bold tracking-wider text-gray-400 flex gap-2">
+                        <button onclick="tsYear.selectAll()" class="hover:text-indigo-600 transition-colors">Select All</button>
+                        <button onclick="tsYear.clear()" class="hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                </div>
+                <div id="filter-year"></div>
+            </div>
+        </div>
+
+        <div class="mb-6 flex flex-wrap justify-between items-center gap-4 bg-gray-100 p-3 rounded-lg border border-gray-200 shadow-inner">
+            <div class="flex gap-4 items-center">
+                <span class="text-sm text-gray-700 font-bold" id="result-count">Loading questions...</span>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+                <button onclick="selectAllOnPage()" class="bg-white border border-gray-300 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 px-3 py-1.5 rounded shadow-sm text-sm font-medium transition-colors">
+                    + Select on Page
+                </button>
+                <div class="w-px h-6 bg-gray-300 mx-2 hidden sm:block"></div>
+                <button onclick="clearSelection()" class="text-red-600 hover:text-red-800 hover:underline text-sm font-semibold hidden" id="clear-btn">
+                    Clear ALL Selections
+                </button>
+            </div>
+        </div>
+
+        <div id="questions-container" class="space-y-6"></div>
+        
+        <div id="pagination-controls" class="mt-8 flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-200 hidden">
+            <button id="btn-prev" onclick="changePage(-1)" class="px-5 py-2 bg-indigo-50 text-indigo-700 rounded-md font-bold hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                &larr; Previous Page
+            </button>
+            <span id="page-indicator" class="text-gray-600 font-semibold text-sm">Page 1 of 1</span>
+            <button id="btn-next" onclick="changePage(1)" class="px-5 py-2 bg-indigo-50 text-indigo-700 rounded-md font-bold hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Next Page &rarr;
+            </button>
+        </div>
+    </div>
+
+    <div id="export-bar" class="fixed bottom-0 left-0 w-full bg-indigo-900 text-white p-4 shadow-xl transform translate-y-full transition-transform duration-300 flex justify-between items-center z-50">
+        <div class="flex gap-8 items-center max-w-6xl mx-auto w-full px-6">
+            <div class="text-lg font-semibold flex gap-6">
+                <span><span id="selected-count" class="text-indigo-300">0</span> Selected globally</span>
+                <span class="text-indigo-500">|</span>
+                <span><span id="total-marks" class="text-emerald-400">0</span> Total Marks</span>
+            </div>
+            <button onclick="openModal()" class="bg-white text-indigo-900 px-6 py-2 rounded-md font-bold hover:bg-indigo-50 transition-colors shadow ml-auto">
+                Configure & Export LaTeX
+            </button>
+        </div>
+    </div>
+
+    <div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 modal-enter flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h2 class="text-2xl font-bold text-gray-900">Compile Document</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4 mb-4 shrink-0">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Worksheet Title</label>
+                        <input type="text" id="doc-title" value="Mathematics Assessment" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Spacing Between Questions</label>
+                        <input type="text" id="doc-spacing" value="\vspace{3cm}" class="w-full border-gray-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="generateCode('raw')" class="border-2 border-indigo-600 text-indigo-700 px-3 py-2 rounded-md font-bold hover:bg-indigo-50 transition-colors text-xs text-center flex items-center justify-center">
+                        Raw Snippets (Questions Only)
+                    </button>
+                    <button onclick="generateCode('full_no_ms')" class="bg-indigo-500 text-white px-3 py-2 rounded-md font-bold hover:bg-indigo-600 transition-colors text-xs text-center flex items-center justify-center">
+                        Full Doc (No Mark Scheme)
+                    </button>
+                    <button onclick="generateCode('full_with_ms')" class="bg-indigo-700 text-white px-3 py-2 rounded-md font-bold hover:bg-indigo-800 transition-colors text-xs text-center flex items-center justify-center">
+                        Full Doc + Cambridge Mark Scheme
+                    </button>
+                </div>
+            </div>
+
+            <div id="textarea-container" class="hidden flex-col flex-1 overflow-hidden shrink min-h-[200px]">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="block text-sm font-bold text-gray-700">Generated Code:</label>
+                    <button onclick="copyFromTextarea()" id="manual-copy-btn" class="text-xs bg-green-100 text-green-800 px-3 py-1 rounded font-bold hover:bg-green-200 transition-colors">
+                        Attempt Auto-Copy
+                    </button>
+                </div>
+                <textarea id="export-textarea" class="w-full flex-1 p-3 border border-gray-300 rounded bg-gray-50 font-mono text-xs text-gray-800 focus:ring-indigo-500 focus:border-indigo-500" readonly></textarea>
+                <p class="text-xs text-gray-500 mt-2 italic text-center">If auto-copy fails, click inside the box, press Ctrl+A (Cmd+A), and copy manually.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MultiCheckboxSelect {
+            constructor(id, placeholder, onChangeCallback) {
+                this.id = id;
+                this.placeholder = placeholder;
+                this.onChangeCallback = onChangeCallback;
+                this.options = [];
+                this.selected = new Set();
+                this.container = document.getElementById(id);
+                this.renderTemplate();
+                this.setupEvents();
+            }
+
+            renderTemplate() {
+                this.container.innerHTML = `
+                    <div class="relative">
+                        <button type="button" class="w-full bg-white border border-gray-300 rounded-md shadow-sm p-2 text-left flex justify-between items-center text-sm hover:border-indigo-400 transition-colors min-h-[40px]" data-toggle>
+                            <span class="truncate pr-2 text-gray-500" data-label>${this.placeholder}</span>
+                            <svg class="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="absolute z-50 w-full bg-white border border-gray-200 rounded-md mt-1 hidden shadow-xl" data-menu>
+                            <div class="max-h-60 overflow-y-auto custom-scrollbar p-1 space-y-1" data-list></div>
+                        </div>
+                    </div>
+                `;
+                this.button = this.container.querySelector('[data-toggle]');
+                this.label = this.container.querySelector('[data-label]');
+                this.menu = this.container.querySelector('[data-menu]');
+                this.list = this.container.querySelector('[data-list]');
+            }
+
+            setupEvents() {
+                this.button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('[data-menu]').forEach(menu => {
+                        if (menu !== this.menu) menu.classList.add('hidden');
+                    });
+                    this.menu.classList.toggle('hidden');
+                });
+                this.menu.addEventListener('click', (e) => e.stopPropagation());
+                document.addEventListener('click', (e) => {
+                    if (!this.container.contains(e.target)) this.menu.classList.add('hidden');
+                });
+            }
+
+            setOptions(optionsArray) {
+                this.options = optionsArray;
+                this.renderOptions();
+            }
+
+            clear(triggerChange = true) {
+                this.selected.clear();
+                this.renderOptions();
+                this.updateLabel();
+                if(triggerChange) this.onChangeCallback();
+            }
+
+            selectAll(triggerChange = true) {
+                this.options.forEach(opt => this.selected.add(opt.value));
+                this.renderOptions();
+                this.updateLabel();
+                if(triggerChange) this.onChangeCallback();
+            }
+
+            renderOptions() {
+                this.list.innerHTML = '';
+                if (this.options.length === 0) {
+                    this.list.innerHTML = `<div class="text-sm text-gray-400 p-2 italic text-center">No options</div>`;
+                    return;
+                }
+                this.options.forEach(opt => {
+                    const isChecked = this.selected.has(opt.value);
+                    const item = document.createElement('label');
+                    item.className = "flex items-start p-2 hover:bg-indigo-50 rounded cursor-pointer text-sm text-gray-700 transition-colors";
+                    item.innerHTML = `
+                        <input type="checkbox" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer mt-0.5 mr-2 shrink-0" value="${opt.value}" ${isChecked ? 'checked' : ''}>
+                        <span class="leading-tight">${opt.text}</span>
+                    `;
+                    item.querySelector('input').addEventListener('change', (e) => {
+                        if (e.target.checked) this.selected.add(opt.value);
+                        else this.selected.delete(opt.value);
+                        this.updateLabel();
+                        this.onChangeCallback();
+                    });
+                    this.list.appendChild(item);
+                });
+            }
+
+            updateLabel() {
+                if (this.selected.size === 0) {
+                    this.label.innerText = this.placeholder;
+                    this.label.classList.add('text-gray-500');
+                    this.label.classList.remove('text-indigo-700', 'font-bold');
+                } else if (this.selected.size === 1) {
+                    const val = Array.from(this.selected)[0];
+                    const opt = this.options.find(o => o.value === val);
+                    this.label.innerText = opt ? opt.text : val;
+                    this.label.classList.remove('text-gray-500');
+                    this.label.classList.add('text-indigo-700', 'font-bold');
+                } else {
+                    this.label.innerText = `${this.selected.size} Selected`;
+                    this.label.classList.remove('text-gray-500');
+                    this.label.classList.add('text-indigo-700', 'font-bold');
+                }
+            }
+
+            getValue() {
+                return Array.from(this.selected);
+            }
+
+            setValue(values, triggerChange = true) {
+                this.selected = new Set(values);
+                this.renderOptions();
+                this.updateLabel();
+                if(triggerChange) this.onChangeCallback();
+            }
+        }
+
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYKxreSN3qRp4L3ZsF64lFzdkt5vjiNFSDPPQG8dIoGOQOq3wmGEnzBqnhQ5KyuC5i7Ta4v6SxWyHF/pub?output=csv";
+        
+        let allQuestions = [];
+        let currentFiltered = []; 
+        let selectedIds = new Set(); 
+        
+        let currentPage = 1;
+        const itemsPerPage = 15;
+        
+        let tsTopic, tsSubtopic, tsDifficulty, tsPaper, tsYear;
+        
+        // --- SEARCH ENGINE LOGIC ---
+        let searchQuery = "";
+
+        function handleSearch(event) {
+            searchQuery = event.target.value.toLowerCase().trim();
+            
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (searchQuery.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            
+            filterData();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = "";
+            searchQuery = "";
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            filterData();
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            tsTopic = new MultiCheckboxSelect("filter-topic", "Any Topic...", onTopicChange);
+            tsSubtopic = new MultiCheckboxSelect("filter-subtopic", "Any Sub-Topic...", filterData);
+            
+            tsDifficulty = new MultiCheckboxSelect("filter-difficulty", "Any Difficulty...", filterData);
+            tsDifficulty.setOptions([{value: '1', text: '1 - Core'}, {value: '2', text: '2 - Extended'}, {value: '3', text: '3 - Hard'}]);
+
+            tsPaper = new MultiCheckboxSelect("filter-paper", "Any Paper...", filterData);
+            tsPaper.setOptions([{value: '2', text: 'Paper 2 (21, 22, 23)'}, {value: '4', text: 'Paper 4 (41, 42, 43)'}]);
+
+            tsYear = new MultiCheckboxSelect("filter-year", "Any Year...", filterData);
+        });
+
+        Papa.parse(CSV_URL, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                allQuestions = results.data
+                    .filter(q => q.LatexCode && q.LatexCode.trim() !== "")
+                    .map((q, index) => ({ ...q, id: 'q_' + index }));
+                
+                currentFiltered = [...allQuestions];
+                populateInitialDropdowns();
+                filterData();
+            },
+            error: function(err) {
+                document.getElementById('result-count').innerText = "Error loading data.";
+            }
+        });
+
+        function populateInitialDropdowns() {
+            const topics = [...new Set(allQuestions.map(q => q.Topic ? q.Topic.trim() : ""))].filter(Boolean).sort();
+            const years = [...new Set(allQuestions.map(q => q.Year ? q.Year.trim() : ""))].filter(Boolean).sort();
+
+            tsTopic.setOptions(topics.map(t => ({value: t, text: t})));
+            tsYear.setOptions(years.map(y => ({value: y, text: y})));
+
+            updateSubTopics([]);
+        }
+
+        function onTopicChange() {
+            const selectedTopics = tsTopic.getValue() || [];
+            updateSubTopics(selectedTopics);
+            filterData();
+        }
+
+        function updateSubTopics(selectedTopics) {
+            const currentSelection = tsSubtopic.getValue() || [];
+            let relevantSubTopics = [];
+            if (!selectedTopics || selectedTopics.length === 0) {
+                relevantSubTopics = [...new Set(allQuestions.map(q => q.SubTopic ? q.SubTopic.trim() : ""))].filter(Boolean).sort();
+            } else {
+                relevantSubTopics = [...new Set(allQuestions
+                    .filter(q => q.Topic && selectedTopics.includes(q.Topic.trim()))
+                    .map(q => q.SubTopic ? q.SubTopic.trim() : ""))
+                ].filter(Boolean).sort();
+            }
+            tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
+            const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
+            tsSubtopic.setValue(validSelections, false); 
+        }
+
+        // --- COMBINED FILTER FUNCTION ---
+        function filterData() {
+            const topics = tsTopic.getValue() || [];
+            const subtopics = tsSubtopic.getValue() || [];
+            const difficulties = tsDifficulty.getValue() || [];
+            const papers = tsPaper.getValue() || [];
+            const years = tsYear.getValue() || [];
+
+            currentFiltered = allQuestions.filter(q => {
+                let pStr = q.Paper ? q.Paper.toString().replace(/\D/g, '') : "";
+                const matchTopic = topics.length === 0 || topics.includes(q.Topic.trim());
+                const matchSubtopic = subtopics.length === 0 || subtopics.includes(q.SubTopic.trim());
+                const matchDiff = difficulties.length === 0 || difficulties.includes(q.Difficulty.toString().trim());
+                const matchPaper = papers.length === 0 || papers.some(p => pStr.startsWith(p));
+                const matchYear = years.length === 0 || years.includes(q.Year.trim());
+
+                // Search through raw code & mark scheme
+                const rawLatex = (q.LatexCode || "").toLowerCase();
+                const markScheme = (q['Mark Scheme'] || q.MarkScheme || q.MarkSchemeCode || "").toLowerCase();
+                const matchSearch = searchQuery === "" || rawLatex.includes(searchQuery) || markScheme.includes(searchQuery);
+
+                return matchTopic && matchSubtopic && matchDiff && matchPaper && matchYear && matchSearch;
+            });
+
+            currentPage = 1;
+            renderCards();
+        }
+
+        function selectAllOnPage() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = currentFiltered.slice(startIndex, endIndex);
+            
+            pageData.forEach(q => selectedIds.add(q.id));
+            renderCards();
+            updateExportBar();
+        }
+
+        function toggleSelection(id) {
+            if (selectedIds.has(id)) { selectedIds.delete(id); } else { selectedIds.add(id); }
+            updateExportBar();
+        }
+
+        function clearSelection() {
+            selectedIds.clear();
+            renderCards();
+            updateExportBar();
+        }
+
+        function updateExportBar() {
+            const count = selectedIds.size;
+            document.getElementById('selected-count').innerText = count;
+            
+            let totalMarks = 0;
+            selectedIds.forEach(id => {
+                const question = allQuestions.find(q => q.id === id);
+                if (question && question.Marks) {
+                    const parsedMarks = parseInt(question.Marks.trim());
+                    if (!isNaN(parsedMarks)) totalMarks += parsedMarks;
+                }
+            });
+            document.getElementById('total-marks').innerText = totalMarks;
+
+            const bar = document.getElementById('export-bar');
+            const clearBtn = document.getElementById('clear-btn');
+            
+            if (count > 0) {
+                bar.classList.remove('translate-y-full');
+                clearBtn.classList.remove('hidden');
+            } else {
+                bar.classList.add('translate-y-full');
+                clearBtn.classList.add('hidden');
+            }
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            renderCards();
+            document.getElementById('questions-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderCards() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            const totalItems = currentFiltered.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            const pageData = currentFiltered.slice(startIndex, endIndex);
+
+            if (totalItems === 0) {
+                document.getElementById('result-count').innerText = "0 questions found";
+            } else {
+                document.getElementById('result-count').innerText = `Showing ${startIndex + 1} - ${endIndex} of ${totalItems} total questions`;
+            }
+
+            pageData.forEach((q) => {
+                let diffColor = "bg-green-100 text-green-800";
+                if(q.Difficulty == "2") diffColor = "bg-yellow-100 text-yellow-800";
+                if(q.Difficulty == "3") diffColor = "bg-red-100 text-red-800";
+
+                const rawCode = q.LatexCode;
+                const msCode = q['Mark Scheme'] || q.MarkScheme || q.MarkSchemeCode || '\\textit{No mark scheme provided.}';
+                const marks = q.Marks ? q.Marks.trim() : '0';
+                
+                const qImageURL = q.QuestionImageURL || q['Question Image URL'] || q['QuestionImage'] || '';
+                const msImageURL = q.MSImageURL || q['Mark Scheme Image URL'] || q['MSImage'] || '';
+
+                const qPreviewHTML = qImageURL ? 
+                    `<img src="${qImageURL}" class="question-img border border-gray-200 rounded shadow-sm" alt="Question Preview">` : 
+                    `<div class="text-gray-400 italic text-sm p-4 bg-gray-50 rounded border border-dashed border-gray-300">No Image URL provided in spreadsheet.</div>`;
+                
+                const msPreviewHTML = msImageURL ? 
+                    `<img src="${msImageURL}" class="question-img border border-emerald-200 rounded shadow-sm" alt="Mark Scheme Preview">` : 
+                    `<div class="text-gray-400 italic text-sm p-4 bg-emerald-50 rounded border border-dashed border-emerald-200">No Mark Scheme Image URL provided.</div>`;
+
+                const isChecked = selectedIds.has(q.id) ? 'checked' : '';
+                const cardHighlight = isChecked ? 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50' : 'border-gray-200';
+
+                const cardHTML = `
+                    <div class="bg-white rounded-lg shadow-sm border ${cardHighlight} transition-all relative">
+                        <div class="bg-gray-50 border-b px-4 py-3 flex flex-wrap gap-3 items-center rounded-t-lg">
+                            <input type="checkbox" class="question-checkbox w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" 
+                                   onchange="toggleSelection('${q.id}')" ${isChecked}>
+                            <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800">${q.Topic || 'Unknown'}</span>
+                            <span class="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-800">${q.SubTopic || 'Unknown'}</span>
+                            <span class="px-2 py-1 text-xs font-semibold rounded ${diffColor}">Diff: ${q.Difficulty || '?'}</span>
+                            <span class="px-2 py-1 text-xs font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200">${marks} Marks</span>
+                            <span class="ml-auto text-sm text-gray-500 font-medium">${q.Year} - ${q.Paper}</span>
+                        </div>
+                        
+                        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="flex flex-col gap-6">
+                                <div>
+                                    <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 mb-3">Live Preview</h3>
+                                    ${qPreviewHTML}
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold uppercase tracking-wider text-emerald-500 mb-2">Mark Scheme</h3>
+                                    ${msPreviewHTML}
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col h-full">
+                                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 mb-3">Raw LaTeX (Used for Export)</h3>
+                                <div class="bg-gray-900 rounded-md p-4 overflow-x-auto max-h-[500px] overflow-y-auto flex-1">
+                                    <pre class="text-green-400 text-xs font-mono whitespace-pre-wrap mb-4">${escapeHTML(rawCode)}</pre>
+                                    <div class="border-t border-gray-700 pt-4 mt-4">
+                                        <pre class="text-emerald-300 text-xs font-mono whitespace-pre-wrap">${escapeHTML(msCode)}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHTML);
+            });
+
+            const pagControls = document.getElementById('pagination-controls');
+            if (totalItems > itemsPerPage) {
+                pagControls.classList.remove('hidden');
+                document.getElementById('page-indicator').innerText = `Page ${currentPage} of ${totalPages}`;
+                document.getElementById('btn-prev').disabled = (currentPage === 1);
+                document.getElementById('btn-next').disabled = (currentPage === totalPages);
+            } else {
+                pagControls.classList.add('hidden');
+            }
+        }
+
+        function openModal() { 
+            document.getElementById('export-modal').classList.remove('hidden'); 
+            document.getElementById('export-modal').classList.add('flex');
+            document.getElementById('textarea-container').classList.add('hidden'); 
+        }
+        function closeModal() { 
+            document.getElementById('export-modal').classList.add('hidden'); 
+            document.getElementById('export-modal').classList.remove('flex'); 
+        }
+
+        function generateCode(type) {
+            const spacing = document.getElementById('doc-spacing').value;
+            const title = document.getElementById('doc-title').value;
+            
+            let questions = [];
+            let msRows = "";
+            let qCounter = 1;
+            
+            allQuestions.forEach(q => {
+                if (selectedIds.has(q.id)) {
+                    questions.push(q.LatexCode);
+                    const ms = q['Mark Scheme'] || q.MarkScheme || q.MarkSchemeCode || '\\textit{No mark scheme provided.}';
+                    msRows += `    \\textbf{${qCounter}} & \\parbox[t]{0.82\\textwidth}{${ms}} \\\\\n    \\midrule\n`;
+                    qCounter++;
+                }
+            });
+
+            const joinedQuestions = questions.join(`\n\n${spacing}\n\n`);
+            const tikzLibraries = `\\usetikzlibrary{calc, intersections, angles, quotes, arrows.meta, decorations.pathreplacing, decorations.markings, patterns, positioning}`;
+
+            let finalOutput = "";
+
+            if (type === 'raw') {
+                finalOutput = joinedQuestions;
+            } else if (type === 'full_no_ms') {
+                finalOutput = `\\documentclass[12pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath, amssymb, geometry, tikz, enumitem}
+${tikzLibraries}
+\\geometry{margin=1in}
+
+\\begin{document}
+
+\\begin{center}
+    \\Large\\textbf{${title}} \\\\[0.5cm]
+    \\normalsize Name: \\makebox[3in]{\\hrulefill} \\hfill Date: \\makebox[1.5in]{\\hrulefill}
+\\end{center}
+
+\\vspace{1cm}
+
+\\begin{enumerate}[label=\\arabic*.]
+${joinedQuestions}
+\\end{enumerate}
+
+\\end{document}`;
+            } else if (type === 'full_with_ms') {
+                finalOutput = `\\documentclass[12pt,a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{amsmath, amssymb, geometry, tikz, enumitem, longtable, booktabs}
+${tikzLibraries}
+\\geometry{margin=1in}
+
+\\begin{document}
+
+% --- EXAM SECTION ---
+\\begin{center}
+    \\Large\\textbf{${title}} \\\\[0.5cm]
+    \\normalsize Name: \\makebox[3in]{\\hrulefill} \\hfill Date: \\makebox[1.5in]{\\hrulefill}
+\\end{center}
+
+\\vspace{1cm}
+
+\\begin{enumerate}[label=\\arabic*.]
+${joinedQuestions}
+\\end{enumerate}
+
+\\newpage
+
+% --- CAMBRIDGE INTERNATIONALLY STRUCTURED MARK SCHEME SECTION ---
+\\begin{center}
+    \\Large\\textbf{Mark Scheme \\\\ ${title}}
+\\end{center}
+\\vspace{1cm}
+
+\\setlength{\\extrarowheight}{4pt}
+\\begin{longtable}{@{} p{0.12\\textwidth} p{0.88\\textwidth} @{}}
+    \\toprule
+    \\textbf{Question} & \\textbf{Answer / Guidance / Marks} \\\\
+    \\midrule
+${msRows}    \\bottomrule
+\\end{longtable}
+
+\\end{document}`;
+            }
+
+            document.getElementById('textarea-container').classList.remove('hidden');
+            document.getElementById('textarea-container').classList.add('flex');
+            const textarea = document.getElementById('export-textarea');
+            textarea.value = finalOutput;
+            copyFromTextarea();
+        }
+
+        function copyFromTextarea() {
+            const textarea = document.getElementById('export-textarea');
+            const btn = document.getElementById('manual-copy-btn');
+            textarea.select();
+            textarea.setSelectionRange(0, 999999); 
+            try {
+                document.execCommand('copy');
+                const originalText = btn.innerText;
+                btn.innerText = "Copied!";
+                btn.classList.add('bg-green-600', 'text-white');
+                btn.classList.remove('bg-green-100', 'text-green-800');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('bg-green-600', 'text-white');
+                    btn.classList.add('bg-green-100', 'text-green-800');
+                }, 2000);
+            } catch (err) {
+                btn.innerText = "Auto-copy blocked. Please copy manually.";
+                btn.classList.add('bg-red-100', 'text-red-800');
+                btn.classList.remove('bg-green-100', 'text-green-800');
+            }
+        }
+
+        function escapeHTML(str) {
+            return (str || '').replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
+            );
+        }
+    </script>
+</body>
+</html>
