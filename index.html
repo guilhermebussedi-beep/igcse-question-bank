@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematics Question Bank Pro | Portal</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .question-img {
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            display: block;
+            border-radius: 0.375rem;
+        }
+
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Spinner */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Image loading overlay -- shown while a question/mark-scheme image is in flight.
+           Some hosted images take a while on their first hit in a while (a cold-cache penalty
+           on the free image host) even though the file itself is small; this at least makes the
+           wait visible instead of a blank box, and offers an escape hatch after a few seconds. */
+        .img-loading-wrap { position: relative; min-height: 4rem; }
+        .img-spinner-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; background: #f8fafc; border-radius: 0.375rem; border: 1px dashed #e2e8f0; }
+        .spinner-dark { border: 3px solid #e2e8f0; border-top: 3px solid #6366f1; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
+        .img-slow-hint { opacity: 0; pointer-events: none; font-size: 11px; color: #94a3b8; text-align: center; padding: 0 0.5rem; animation: revealSlowHint 0s linear 5s forwards; }
+        @keyframes revealSlowHint { to { opacity: 1; pointer-events: auto; } }
+
+        /* Reorder list */
+        .order-row.sortable-ghost { opacity: 0.4; }
+        .order-row.sortable-chosen { box-shadow: 0 0 0 2px #6366f1; }
+        .drag-handle { cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen overflow-hidden bg-slate-50 relative">
+
+    <!-- ================= LOGIN PORTAL ================= -->
+    <div id="login-container" class="absolute inset-0 flex items-center justify-center bg-slate-900 z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 m-4 fade-in">
+            <div class="text-center mb-8">
+                <div class="flex justify-center mb-4">
+                    <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-20 w-auto object-contain">
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800">Question Bank Portal</h1>
+                <p class="text-sm text-slate-500 mt-2">Sign in to access assessments and solutions.</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                    <input type="text" id="login-user" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <input type="password" id="login-pass" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" required>
+                </div>
+
+                <div id="login-error" class="hidden p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 text-center">
+                    Invalid username or password.
+                </div>
+
+                <button type="submit" id="login-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors flex justify-center items-center h-11">
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-100 text-center">
+                <p class="text-xs text-slate-400">If you just added an account to Google Sheets,<br>it may take ~5 minutes to sync.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= COURSE / SYLLABUS SELECTION ================= -->
+    <div id="course-select-container" class="hidden absolute inset-0 flex items-center justify-center bg-slate-900 z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 m-4 fade-in">
+            <div class="text-center mb-8">
+                <div class="flex justify-center mb-4">
+                    <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800">Choose Your Syllabus</h1>
+                <p id="course-select-subtitle" class="text-sm text-slate-500 mt-2">Select which question bank you'd like to browse.</p>
+            </div>
+
+            <!-- Step 1: Exam Board -->
+            <div id="board-step" class="grid grid-cols-2 gap-4">
+                <button onclick="selectBoard('IGCSE')" class="group border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-xl p-6 text-center transition-all">
+                    <div class="text-3xl mb-2">📘</div>
+                    <div class="font-bold text-slate-800 group-hover:text-indigo-700">IGCSE</div>
+                    <div class="text-xs text-slate-400 mt-1">Cambridge Mathematics</div>
+                </button>
+                <button onclick="selectBoard('IB')" class="group border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-xl p-6 text-center transition-all">
+                    <div class="text-3xl mb-2">🌐</div>
+                    <div class="font-bold text-slate-800 group-hover:text-indigo-700">IB</div>
+                    <div class="text-xs text-slate-400 mt-1">International Baccalaureate</div>
+                </button>
+            </div>
+
+            <!-- Step 2: IB Course (hidden until "IB" is chosen above). HL is not a separate section here --
+                 it shares questions with SL, so it's offered as an in-app toggle instead (see the
+                 "Include HL Questions" switch in the sidebar once inside the app). -->
+            <div id="ib-course-step" class="hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="selectIBCourse('AA')" class="border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-xl p-6 text-center transition-all">
+                        <div class="font-bold text-slate-800">AA</div>
+                        <div class="text-xs text-slate-400 mt-1">Analysis &amp; Approaches</div>
+                    </button>
+                    <button onclick="selectIBCourse('AI')" class="border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-xl p-6 text-center transition-all">
+                        <div class="font-bold text-slate-800">AI</div>
+                        <div class="text-xs text-slate-400 mt-1">Applications &amp; Interpretation</div>
+                    </button>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-4 text-center">You'll start with SL questions &mdash; you can add HL questions from inside the app.</p>
+                <button onclick="backToBoardStep()" class="mt-4 text-sm text-slate-400 hover:text-slate-600 font-semibold flex items-center gap-1 mx-auto">
+                    &larr; Back
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP (Hidden until login) ================= -->
+    <div id="app-container" class="hidden h-full flex w-full">
+        <!-- Sidebar Navigation & Filters -->
+        <aside class="w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-20 shrink-0">
+            <div class="p-4 border-b border-slate-100 bg-indigo-600 text-white flex justify-between items-center">
+                <div class="flex flex-col items-start">
+                    <button onclick="goHome()" class="focus:outline-none hover:opacity-80 transition-opacity" title="Go to Home">
+                        <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-10 w-auto object-contain">
+                    </button>
+                    <div class="flex gap-1.5 mt-1">
+                        <p id="user-role-badge" class="text-[10px] font-bold uppercase tracking-widest text-indigo-200 bg-indigo-800/50 inline-block px-2 py-0.5 rounded">Role</p>
+                        <p id="course-badge" class="text-[10px] font-bold uppercase tracking-widest text-emerald-200 bg-emerald-800/40 inline-block px-2 py-0.5 rounded">Syllabus</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openHistoryModal()" id="history-nav-btn" class="hidden text-indigo-200 hover:text-white transition-colors" title="Compile History">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                    <button onclick="changeCourse()" class="text-indigo-200 hover:text-white transition-colors" title="Switch Syllabus">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                    <button onclick="logout()" class="text-indigo-200 hover:text-white transition-colors" title="Logout">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-6 bg-slate-50">
+                <!-- HL toggle (IB only) -->
+                <div id="hl-toggle-wrapper" class="hidden items-center justify-between bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                    <div class="pr-2">
+                        <p class="text-sm font-semibold text-slate-700">Include HL Questions</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Adds Higher Level questions on top of the SL set.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" id="hl-toggle" class="sr-only peer" onchange="toggleHLQuestions(this.checked)">
+                        <div class="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-indigo-600 transition-colors"></div>
+                        <div class="absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
+                    </label>
+                </div>
+
+                <!-- Search -->
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <input type="text" id="search-input" oninput="handleSearch(event)" placeholder="Search keywords, equations, LaTeX, or paste a Question ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white hover:bg-white shadow-sm">
+                </div>
+
+                <!-- Filters -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest">Filters</label>
+                        <button onclick="clearAllFilters()" class="text-xs text-red-500 hover:text-red-700 font-semibold transition-colors">Clear All</button>
+                    </div>
+
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Topic</label><div id="filter-topic"></div></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Subtopic</label><div id="filter-subtopic"></div></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Difficulty</label><div id="filter-difficulty"></div></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Paper</label><div id="filter-paper"></div></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Year</label><div id="filter-year"></div></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+            <!-- Header -->
+            <header class="bg-white border-b border-slate-200 p-4 flex items-center justify-end shadow-sm z-10 shrink-0">
+                <div class="flex items-center gap-4" id="selection-summary">
+                    <button onclick="selectAllOnPage()" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded border border-indigo-100 transition-colors">Select Page</button>
+                    <button onclick="clearSelection()" class="text-sm font-semibold text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded border border-red-100 transition-colors">Clear Selection</button>
+                </div>
+            </header>
+
+            <!-- Scrollable Feed -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 pb-32" id="feed-container">
+
+                <!-- Dashboard / Analytics (Visible in Teacher Mode) -->
+                <div id="analytics-section" class="mb-8">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-bold text-slate-800">Current Filter Analytics</h2>
+                        <span id="result-count" class="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-200">Loading data...</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Marks Distribution</h3>
+                            <div class="h-32"><canvas id="marksChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Difficulty Balance</h3>
+                            <div class="h-32"><canvas id="difficultyChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Syllabus Coverage</h3>
+                            <div class="h-32"><canvas id="topicChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Cards Container -->
+                <div id="questions-container" class="space-y-6"></div>
+
+                <!-- Pagination -->
+                <div id="pagination-controls" class="mt-8 flex justify-center items-center gap-4 hidden">
+                    <button id="btn-prev" onclick="changePage(-1)" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm">&larr; Prev</button>
+                    <div id="page-bubbles" class="flex gap-2"></div>
+                    <button id="btn-next" onclick="changePage(1)" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm">Next &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Export Action Bar (Teacher Only) -->
+            <div id="export-bar" class="absolute bottom-0 left-0 w-full bg-slate-900 text-white p-4 shadow-2xl transform translate-y-full transition-transform duration-300 flex justify-between items-center z-30">
+                <div class="flex gap-8 items-center max-w-5xl mx-auto w-full px-6">
+                    <div class="text-lg font-semibold flex gap-6">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 uppercase tracking-widest">Selected</span>
+                            <span class="text-indigo-400 text-xl"><span id="nav-count">0</span> Qs</span>
+                        </div>
+                        <div class="w-px h-8 bg-slate-700"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 uppercase tracking-widest">Weight</span>
+                            <span class="text-emerald-400 text-xl"><span id="nav-marks">0</span> Marks</span>
+                        </div>
+                    </div>
+                    <button onclick="openExportModal()" class="bg-indigo-500 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-600 transition-colors shadow-lg ml-auto flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        Compile Assessment
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Compile / Export Modal -->
+    <div id="export-modal" class="fixed inset-0 bg-slate-900/60 hidden justify-center items-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 modal-enter flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-5 shrink-0">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">LaTeX Compiler</h2>
+                    <p class="text-sm text-slate-500 mt-1">Exporting <span id="modal-sel-count" class="font-bold text-indigo-600">0</span> selected questions.</p>
+                </div>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="space-y-5 mb-5 shrink-0 bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Document Title</label>
+                        <input type="text" id="doc-title" value="IGCSE Mathematics Assessment" class="w-full border-slate-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Question Spacing (LaTeX)</label>
+                        <input type="text" id="doc-spacing" value="\vspace{4cm}" class="w-full border-slate-300 rounded-md shadow-sm p-2 border focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm">
+                    </div>
+                </div>
+
+                <!-- Question Order (drag to reorder, or use quick-sort buttons) -->
+                <div>
+                    <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest">Question Order</label>
+                        <div class="flex gap-2 flex-wrap">
+                            <button onclick="sortSelectionByDifficulty(false)" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 transition-colors">Easy &rarr; Hard</button>
+                            <button onclick="sortSelectionByDifficulty(true)" class="text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 transition-colors">Hard &rarr; Easy</button>
+                            <button onclick="randomizeSelectionOrder()" class="text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 transition-colors">Randomize</button>
+                            <button onclick="renderOrderList(true)" class="text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 transition-colors">Reset Order</button>
+                        </div>
+                    </div>
+                    <div id="order-list" class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar p-1.5 bg-white rounded-lg border border-slate-200"></div>
+                    <p class="text-[11px] text-slate-400 mt-1.5">Drag the <span class="font-mono">&#8942;&#8942;</span> handle to reorder, or use the arrows. This order is used for both the LaTeX and PDF exports below.</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="generateCode('raw')" class="border border-indigo-200 text-indigo-700 bg-white px-4 py-2.5 rounded-lg font-bold hover:bg-indigo-50 transition-colors text-sm shadow-sm">
+                        Raw Snippets Only
+                    </button>
+                    <button onclick="generateCode('full_no_ms')" class="bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-indigo-600 transition-colors text-sm shadow-sm">
+                        Full Doc (Questions)
+                    </button>
+                    <button onclick="generateCode('full_with_ms')" class="bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-indigo-800 transition-colors text-sm shadow-sm flex justify-center items-center gap-2">
+                        Full Doc + Mark Scheme
+                    </button>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="h-px bg-slate-200 flex-1"></div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">or compile a real PDF</span>
+                        <div class="h-px bg-slate-200 flex-1"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="openInOverleaf('full_no_ms')" class="border border-emerald-200 text-emerald-700 bg-white px-4 py-2.5 rounded-lg font-bold hover:bg-emerald-50 transition-colors text-sm shadow-sm flex justify-center items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Open in Overleaf (Questions)
+                        </button>
+                        <button onclick="openInOverleaf('full_with_ms')" class="bg-emerald-600 text-white px-4 py-2.5 rounded-lg font-bold hover:bg-emerald-700 transition-colors text-sm shadow-sm flex justify-center items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Open in Overleaf (+ Mark Scheme)
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1.5">Opens a new Overleaf project with this exact LaTeX pre-loaded &mdash; click "Recompile" then the download icon for a pixel-perfect PDF from the real pdfTeX engine. Requires a free Overleaf account.</p>
+                </div>
+            </div>
+
+            <div id="textarea-container" class="hidden flex-col flex-1 overflow-hidden shrink min-h-[200px]">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest">Compiled Code Output</label>
+                    <button onclick="copyLaTeX()" id="copy-btn" class="text-xs bg-emerald-500 text-white px-4 py-1.5 rounded-full font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1 shadow-sm">
+                        Copy to Clipboard
+                    </button>
+                </div>
+                <textarea id="export-textarea" class="w-full flex-1 p-4 border border-slate-300 rounded-xl bg-slate-900 font-mono text-xs text-emerald-400 focus:outline-none custom-scrollbar shadow-inner" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compile History Modal (teacher only) -->
+    <div id="history-modal" class="fixed inset-0 bg-slate-900/60 hidden justify-center items-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h2 class="text-xl font-bold text-slate-800">Compile History</h2>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="history-list" class="space-y-2 overflow-y-auto custom-scrollbar flex-1"></div>
+        </div>
+    </div>
+
+    <!-- Flag an Issue Modal (fast, multiple-choice, takes <30s) -->
+    <div id="flag-modal" class="fixed inset-0 bg-slate-900/60 hidden justify-center items-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-slate-800">Flag an Issue</h2>
+                <button onclick="closeFlagModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div id="flag-modal-body">
+                <div class="space-y-1 mb-4" id="flag-issue-options"></div>
+                <input type="text" id="flag-note" maxlength="140" placeholder="Add a quick note (optional)" class="w-full border-slate-300 rounded-md shadow-sm p-2 border text-sm mb-4 focus:ring-rose-500 focus:border-rose-500">
+                <button onclick="submitFlag()" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-lg transition-colors">
+                    Submit Report
+                </button>
+            </div>
+            <div id="flag-modal-success" class="hidden text-center py-6">
+                <p class="text-emerald-600 font-bold">Thanks &mdash; reported!</p>
+            </div>
+            <div id="flag-modal-unconfigured" class="hidden text-center py-6 text-sm text-slate-400">
+                Issue reporting isn't set up yet.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- BULLETPROOF HEADER MATCHERS (Used for everything) ---
+        // Prevents code breaking from hidden spaces or capitalization differences in Google Sheets
+        const getVal = (row, possibleNames) => {
+            if(!row) return "";
+            const keys = Object.keys(row);
+            for (const name of possibleNames) {
+                const targetClean = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const foundKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === targetClean);
+                if (foundKey && row[foundKey]) return row[foundKey].toString().trim();
+            }
+            return "";
+        };
+
+        const getTopic = (q) => getVal(q, ['topic']);
+        // A question can belong to several subtopics. The sheet may store this as one "Subtopic"
+        // column (IGCSE) or as several "SubTopic 1".."SubTopic N" columns (IB) -- this collects
+        // every column whose normalized name starts with "subtopic" and returns the non-empty,
+        // de-duplicated values as an array, regardless of how many such columns exist.
+        const getSubtopics = (q) => {
+            if (!q) return [];
+            const vals = [];
+            Object.keys(q).forEach(k => {
+                const norm = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (norm.startsWith('subtopic')) {
+                    const v = (q[k] || '').toString().trim();
+                    if (v) vals.push(v);
+                }
+            });
+            return [...new Set(vals)];
+        };
+        const getYear = (q) => getVal(q, ['year']);
+        const getDifficulty = (q) => getVal(q, ['difficulty']);
+        const getMarks = (q) => getVal(q, ['marks']);
+        const getPaper = (q) => getVal(q, ['paper']);
+        const getLatex = (q) => getVal(q, ['latexcode', 'latex']);
+        const getMarkScheme = (q) => getVal(q, ['markscheme', 'markschemecode']);
+        const getQImage = (q) => getVal(q, ['questionimageurl', 'questionimage']);
+        const getMSImage = (q) => getVal(q, ['msimageurl', 'markschemeimageurl', 'msimage']);
+
+        // Shared badge coloring for a question's difficulty, used by both the question cards and
+        // the export modal's order list. IGCSE stays on its original 1-3 scale (1 green / 2 amber
+        // / 3 rose). IB runs 1-7, where 1-4 is the SL range and 5-7 only ever appears on HL
+        // questions, so it gets a 4-step ramp that visually separates the SL and HL halves.
+        function getDifficultyBadgeClasses(diffVal) {
+            const n = parseInt(diffVal, 10);
+            if (!n) return "bg-slate-100 text-slate-600";
+            if (currentBoard === 'IB') {
+                if (n <= 2) return "bg-emerald-100 text-emerald-800";
+                if (n <= 4) return "bg-amber-100 text-amber-800";
+                if (n <= 6) return "bg-orange-100 text-orange-800";
+                return "bg-rose-100 text-rose-800";
+            }
+            if (n <= 1) return "bg-emerald-100 text-emerald-800";
+            if (n <= 2) return "bg-amber-100 text-amber-800";
+            return "bg-rose-100 text-rose-800";
+        }
+
+        // --- DATA SOURCES ---
+        // IGCSE lives in its own spreadsheet. IB lives in one spreadsheet with a separate tab
+        // (gid) per course/level: AISL = Applications & Interpretation SL, AIHL = Applications &
+        // Interpretation HL, AASL = Analysis & Approaches SL, AAHL = Analysis & Approaches HL.
+        // HL isn't offered as its own syllabus choice -- it reuses/extends the SL question set,
+        // so each IB family (AA / AI) exposes an SL source plus an optional HL source that gets
+        // merged in on top of it via the "Include HL Questions" toggle.
+        const IB_SPREADSHEET_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTCkeUkQq0D-aAkEJvcCbELD7p-Pvga6Kf_kyHPyuvU1rinB_d1eI_WfjvkGY4xz8AA9xbNztDJ50db/pub";
+        // IB difficulty runs 1-7: 1-4 are SL-range questions, 5-7 only ever appear on HL questions.
+        const IB_DIFFICULTY_OPTIONS = [
+            {value: '1', text: '1 - SL Easy'},
+            {value: '2', text: '2 - SL Medium'},
+            {value: '3', text: '3 - SL Hard'},
+            {value: '4', text: '4 - SL Very Hard'},
+            {value: '5', text: '5 - HL Easy'},
+            {value: '6', text: '6 - HL Medium'},
+            {value: '7', text: '7 - HL Hard'}
+        ];
+
+        const DATA_SOURCES = {
+            IGCSE: {
+                label: 'IGCSE',
+                csv: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYKxreSN3qRp4L3ZsF64lFzdkt5vjiNFSDPPQG8dIoGOQOq3wmGEnzBqnhQ5KyuC5i7Ta4v6SxWyHF/pub?gid=0&single=true&output=csv",
+                docTitle: 'IGCSE Mathematics Assessment',
+                difficulty: [{value: '1', text: '1 - Core'}, {value: '2', text: '2 - Extended'}, {value: '3', text: '3 - Hard'}]
+            },
+            AA: {
+                slLabel: 'IB · AA SL',
+                hlLabel: 'IB · AA SL + HL',
+                slCsv: `${IB_SPREADSHEET_BASE}?gid=1659617917&single=true&output=csv`,
+                hlCsv: `${IB_SPREADSHEET_BASE}?gid=1476571088&single=true&output=csv`,
+                docTitle: 'IB Mathematics AA Assessment',
+                difficulty: IB_DIFFICULTY_OPTIONS
+            },
+            AI: {
+                slLabel: 'IB · AI SL',
+                hlLabel: 'IB · AI SL + HL',
+                slCsv: `${IB_SPREADSHEET_BASE}?gid=0&single=true&output=csv`,
+                hlCsv: `${IB_SPREADSHEET_BASE}?gid=2024959486&single=true&output=csv`,
+                docTitle: 'IB Mathematics AI Assessment',
+                difficulty: IB_DIFFICULTY_OPTIONS
+            }
+        };
+
+        // --- ADD YOUR USERS CSV URL HERE ---
+        // Leave empty string "" to use the MOCK_USERS built into this code below.
+        // OR paste your specific Google Sheets link here.
+        const USERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRZ7PyaNgWbYpgvEyhRkcenMNQcRVGVZOHXZ27HZnh93VgE5gjfqZbNhpR-DMHRo1t3m8dxma0vAJxy/pub?gid=410523213&single=true&output=csv";
+
+        // Built-in Users (Fallback if URL is missing/broken)
+        const MOCK_USERS = [
+            { username: 'gbussedi', password: '1234', role: 'teacher' },
+            { username: 'student', password: 'password123', role: 'student' }
+        ];
+
+        // --- FLAG AN ISSUE ---
+        // Submits silently to a Google Form -> Sheet in the background (the reporter never sees
+        // the form or leaves the page -- same hidden-form trick as the Overleaf export below, just
+        // targeting a hidden iframe instead of a new tab). Leave formAction empty to disable the
+        // feature (the modal will say reporting isn't set up yet instead of losing reports).
+        // Setup: create a Google Form with these fields (label text doesn't have to match exactly --
+        // any label containing "issue"/"reporter"/"syllabus"/"reference"/"note" is matched):
+        //   1. Issue Type   2. Reporter   3. Syllabus   4. Question Reference   5. Note
+        //   6. Question ID (new -- add this field so reports carry the exact, permanent lookup id
+        //      alongside the human-readable reference; a plain Short answer field is fine)
+        // Then Menu (⋮) -> "Get pre-filled link" -> type a distinct placeholder in each field ->
+        // "Get Link" -> paste that URL to me (or a developer) and I'll fill in the entry IDs below.
+        // formAction is that same form's ID with /viewform replaced by /formResponse.
+        // entryQuestionId is left blank until that field exists on the form and its entry.XXXXX id
+        // is known -- submitToGoogleForm silently skips any field whose entry id is empty, so
+        // reports keep working (just without the id) in the meantime.
+        const FLAG_ISSUE_CONFIG = {
+            formAction: "https://docs.google.com/forms/d/e/1FAIpQLScg_6TyQf_mTdfb0RA_5f3QDdI08UbvzzHEJUZzY2yjH1yXlw/formResponse",
+            entryIssueType: "entry.288017887",
+            entryReporter: "entry.97024768",
+            entrySyllabus: "entry.672329929",
+            entryQuestionRef: "entry.359716065",
+            entryNote: "entry.612401178",
+            entryQuestionId: "entry.1923986389"
+        };
+        const FLAG_ISSUE_TYPES = [
+            "Image didn't load / broken",
+            "Wrong or unclear mark scheme",
+            "Typo or error in the question",
+            "Wrong topic/subtopic/difficulty tag",
+            "Duplicate question",
+            "Other"
+        ];
+
+        // --- COMPILE HISTORY ---
+        // Every time a teacher generates or opens an assessment in Overleaf, a log entry is
+        // submitted (same silent background technique) to a second Google Form -> Sheet. To read
+        // it back inside the app, publish that Sheet's responses tab to the web as CSV (File ->
+        // Share -> Publish to web -> CSV) -- same as the question bank sheets -- and paste that
+        // URL into historyCsvUrl below. Leave formAction/historyCsvUrl empty to disable.
+        // Setup: create a Google Form with these fields (label text doesn't have to match exactly):
+        //   1. Teacher   2. Syllabus   3. Assessment Title   4. Question Count
+        //   5. Question IDs   6. Total Marks   7. Export Type   8. Topics Covered
+        // Question IDs is a semicolon-joined list of the internal question ids in selectionOrder
+        // (e.g. "sl_q_0;sl_q_7;hl_q_2"), invisible to the teacher, used only by the "Reopen"
+        // button to restore a past assessment's exact question set.
+        const COMPILE_LOG_CONFIG = {
+            formAction: "https://docs.google.com/forms/d/e/1FAIpQLScYkL9_ZYG-17XjWx_H8UKo7LdvWJRt5FoZYhUkfl9WzIvrWw/formResponse",
+            entryTeacher: "entry.288017887",
+            entrySyllabus: "entry.97024768",
+            entryTitle: "entry.359716065",
+            entryQuestionCount: "entry.612401178",
+            entryQuestionIds: "entry.1987278376",
+            entryTotalMarks: "entry.1542830078",
+            entryExportType: "entry.1166324548",
+            entryTopics: "entry.608773660",
+            historyCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTrU6uC6ZcMQMmNcoiL0c7JoQaJwhnfDLBJOuudpNGJiqV1PBwWCcj8j89wGKlMnKIltDSxLzszjyFo/pub?output=csv"
+        };
+
+        // --- CORE APPLICATION STATE ---
+        let allData = [];
+        let dataMap = new Map(); // id -> question row, for fast lookups
+        let filteredData = [];
+        let selectedIds = new Set();
+        let selectionOrder = []; // ids in the custom order chosen by the teacher (drag/sort/arrows)
+        let originalOrderSnapshot = []; // snapshot taken when the export modal opens, for "Reset Order"
+        let currentRole = null; // 'teacher' or 'student'
+        let currentUsername = null; // the logged-in username, used to attribute flags/compile history
+        let currentBoard = null; // 'IGCSE' or 'IB'
+        let currentIBFamily = null; // 'AA' | 'AI' (null when board is IGCSE)
+        let hlIncluded = false; // whether the HL question set is merged on top of the SL set (IB only)
+        let flaggingQuestionId = null; // question currently open in the Flag an Issue modal
+        let searchQuery = "";
+        let currentPage = 1;
+        const itemsPerPage = 12;
+
+        let marksChart, difficultyChart, topicChart;
+        let tsTopic, tsSubtopic, tsDifficulty, tsPaper, tsYear;
+        let chartsInitialized = false;
+        let orderSortable = null;
+
+        // --- LOGIN LOGIC ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const uInput = document.getElementById('login-user').value.trim();
+            const pInput = document.getElementById('login-pass').value.trim();
+            const btn = document.getElementById('login-btn');
+            const errorDiv = document.getElementById('login-error');
+
+            btn.innerHTML = `<div class="spinner"></div>`;
+            errorDiv.classList.add('hidden');
+
+            if (USERS_CSV_URL && USERS_CSV_URL.trim() !== "") {
+                let finalUsersUrl = USERS_CSV_URL.trim();
+
+                // Smart fix for copy-paste errors
+                if (finalUsersUrl.includes('/pubhtml')) {
+                    finalUsersUrl = finalUsersUrl.replace('/pubhtml', '/pub');
+                }
+                if (!finalUsersUrl.includes('output=csv')) {
+                    finalUsersUrl += finalUsersUrl.includes('?') ? '&output=csv' : '?output=csv';
+                }
+
+                // Cache-buster: Forces Google Sheets to return fresh data instead of cached version
+                finalUsersUrl += '&_cb=' + new Date().getTime();
+
+                Papa.parse(finalUsersUrl, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        verifyUser(results.data, uInput, pInput, btn, errorDiv);
+                    },
+                    error: function() {
+                        errorDiv.innerHTML = "<b>Network Error:</b> Could not reach the Users spreadsheet. Did you publish it to the web as a CSV?";
+                        btn.innerHTML = `<span>Sign In</span>`;
+                        errorDiv.classList.remove('hidden');
+                    }
+                });
+            } else {
+                // Use built-in mock users if no CSV URL is provided
+                setTimeout(() => { verifyUser(MOCK_USERS, uInput, pInput, btn, errorDiv); }, 500);
+            }
+        }
+
+        function verifyUser(userList, usernameInput, passwordInput, btn, errorDiv) {
+            // Error Check 1: Did they link the Question Bank sheet instead of the Users sheet?
+            if (userList.length > 0) {
+                const keys = Object.keys(userList[0]).map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                const hasUserColumn = keys.includes('username') || keys.includes('user') || keys.includes('login');
+
+                if (!hasUserColumn) {
+                    btn.innerHTML = `<span>Sign In</span>`;
+                    errorDiv.innerHTML = "<b>Configuration Error:</b> The linked Google Sheet does not have a 'Username' column. Did you accidentally link the main Question Bank tab instead of the Users tab?";
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+            } else {
+                btn.innerHTML = `<span>Sign In</span>`;
+                errorDiv.innerHTML = "<b>Error:</b> The Users spreadsheet appears to be empty.";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Find user using bulletproof logic to avoid capitalization errors in headers
+            const matchedUser = userList.find(u => {
+                const uName = getVal(u, ['username', 'user', 'login']);
+                const uPass = getVal(u, ['password', 'pass', 'pwd']);
+                return uName.toLowerCase() === usernameInput.toLowerCase() && uPass === passwordInput;
+            });
+
+            if (matchedUser) {
+                const rawRole = getVal(matchedUser, ['role', 'type', 'account']);
+                const role = rawRole.toLowerCase().includes('teacher') ? 'teacher' : 'student';
+                // Use the username as stored in the sheet (canonical casing) rather than what was typed.
+                const canonicalUsername = getVal(matchedUser, ['username', 'user', 'login']) || usernameInput;
+                loginSuccess(role, canonicalUsername);
+            } else {
+                btn.innerHTML = `<span>Sign In</span>`;
+                errorDiv.innerHTML = "Invalid username or password.<br><span class='text-xs mt-1 block text-red-500'>Note: Google Sheets changes can take up to 5 minutes to sync!</span>";
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        function loginSuccess(role, username) {
+            currentRole = role;
+            currentUsername = username || null;
+
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('course-select-container').classList.remove('hidden');
+            document.getElementById('user-role-badge').innerText = `Logged in as: ${currentRole}`;
+
+            // Configure UI based on role (app-container itself stays hidden until a syllabus is chosen)
+            if (currentRole === 'student') {
+                document.getElementById('selection-summary').style.display = 'none';
+                document.getElementById('analytics-section').style.display = 'none';
+                document.getElementById('export-bar').classList.add('hidden');
+            } else {
+                document.getElementById('selection-summary').style.display = 'flex';
+                document.getElementById('analytics-section').style.display = 'block';
+                document.getElementById('export-bar').classList.remove('hidden');
+            }
+
+            const historyBtn = document.getElementById('history-nav-btn');
+            if (historyBtn) historyBtn.classList.toggle('hidden', currentRole !== 'teacher');
+        }
+
+        function logout() {
+            currentRole = null;
+            currentUsername = null;
+            currentBoard = null;
+            currentIBFamily = null;
+            hlIncluded = false;
+            document.getElementById('login-user').value = '';
+            document.getElementById('login-pass').value = '';
+            document.getElementById('login-btn').innerHTML = `<span>Sign In</span>`;
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('course-select-container').classList.add('hidden');
+            document.getElementById('login-container').classList.remove('hidden');
+        }
+
+        // --- SYLLABUS / COURSE SELECTION ---
+        function selectBoard(board) {
+            if (board === 'IGCSE') {
+                finalizeBoardSelection('IGCSE');
+            } else if (board === 'IB') {
+                document.getElementById('board-step').classList.add('hidden');
+                document.getElementById('ib-course-step').classList.remove('hidden');
+                document.getElementById('course-select-subtitle').innerText = 'Select your IB Mathematics course.';
+            }
+        }
+
+        function backToBoardStep() {
+            document.getElementById('ib-course-step').classList.add('hidden');
+            document.getElementById('board-step').classList.remove('hidden');
+            document.getElementById('course-select-subtitle').innerText = "Select which question bank you'd like to browse.";
+        }
+
+        function selectIBCourse(family) {
+            finalizeBoardSelection(family);
+        }
+
+        async function finalizeBoardSelection(key) {
+            const source = DATA_SOURCES[key];
+            if (!source) return;
+
+            currentBoard = (key === 'IGCSE') ? 'IGCSE' : 'IB';
+            currentIBFamily = (key === 'IGCSE') ? null : key;
+            hlIncluded = false;
+
+            // Reset the picker's internal step so it starts fresh next time it's opened
+            document.getElementById('ib-course-step').classList.add('hidden');
+            document.getElementById('board-step').classList.remove('hidden');
+            document.getElementById('course-select-subtitle').innerText = "Select which question bank you'd like to browse.";
+
+            document.getElementById('course-select-container').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('doc-title').value = source.docTitle;
+
+            const hlWrapper = document.getElementById('hl-toggle-wrapper');
+            const hlToggle = document.getElementById('hl-toggle');
+            if (hlToggle) hlToggle.checked = false;
+            if (hlWrapper) {
+                hlWrapper.classList.toggle('hidden', currentBoard !== 'IB');
+                hlWrapper.classList.toggle('flex', currentBoard === 'IB');
+            }
+
+            if (tsDifficulty) tsDifficulty.setOptions(source.difficulty);
+
+            resetForNewBoard();
+            updateCourseBadge();
+
+            // Init charts now that the container is visible (ChartJS needs a visible container)
+            if (!chartsInitialized && currentRole === 'teacher') {
+                initCharts();
+                chartsInitialized = true;
+            }
+
+            document.getElementById('result-count').innerText = "Loading database...";
+            try {
+                await loadQuestionSet(currentBoard === 'IGCSE' ? source.csv : source.slCsv, 'sl');
+                populateInitialDropdowns();
+                filterData();
+            } catch (e) {
+                document.getElementById('result-count').innerText = "Failed to load database.";
+            }
+        }
+
+        // Adds/removes the HL question set on top of whatever SL set is already loaded, without
+        // touching the SL questions or forcing the teacher to re-pick a syllabus.
+        async function toggleHLQuestions(checked) {
+            if (!currentIBFamily) return;
+            const source = DATA_SOURCES[currentIBFamily];
+
+            if (checked) {
+                document.getElementById('result-count').innerText = "Loading HL questions...";
+                try {
+                    await loadQuestionSet(source.hlCsv, 'hl');
+                    hlIncluded = true;
+                } catch (e) {
+                    document.getElementById('result-count').innerText = "Failed to load HL questions.";
+                    const hlToggle = document.getElementById('hl-toggle');
+                    if (hlToggle) hlToggle.checked = false;
+                    hlIncluded = false;
+                    return;
+                }
+            } else {
+                removeQuestionSet('hl');
+                hlIncluded = false;
+            }
+
+            pruneSelectionToExistingData();
+            populateInitialDropdowns();
+            updateCourseBadge();
+            filterData();
+        }
+
+        // Human-readable label for whatever syllabus/course/level is currently active -- shared by
+        // the sidebar badge, Flag an Issue reports, and Compile History log entries.
+        function getCurrentSyllabusLabel() {
+            if (currentBoard === 'IGCSE') return DATA_SOURCES.IGCSE.label;
+            if (currentBoard === 'IB' && currentIBFamily) {
+                const source = DATA_SOURCES[currentIBFamily];
+                return hlIncluded ? source.hlLabel : source.slLabel;
+            }
+            return '';
+        }
+
+        function updateCourseBadge() {
+            const badge = document.getElementById('course-badge');
+            if (!badge) return;
+            badge.innerText = getCurrentSyllabusLabel();
+        }
+
+        function resetForNewBoard() {
+            allData = []; dataMap = new Map(); filteredData = [];
+            selectedIds = new Set(); selectionOrder = []; originalOrderSnapshot = [];
+            searchQuery = ""; currentPage = 1;
+
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
+
+            if (tsTopic) tsTopic.clear(false);
+            if (tsSubtopic) tsSubtopic.setOptions([]);
+            if (tsPaper) tsPaper.clear(false);
+            if (tsYear) tsYear.clear(false);
+
+            updateExportBar();
+        }
+
+        // Drops any selected/ordered question ids that no longer exist in the pool (e.g. after
+        // the HL set is removed) so the export panel never references a vanished question.
+        function pruneSelectionToExistingData() {
+            selectedIds = new Set(Array.from(selectedIds).filter(id => dataMap.has(id)));
+            selectionOrder = selectionOrder.filter(id => dataMap.has(id));
+            originalOrderSnapshot = originalOrderSnapshot.filter(id => dataMap.has(id));
+            updateExportBar();
+        }
+
+        function changeCourse() {
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('course-select-container').classList.remove('hidden');
+        }
+
+        function goHome() {
+            document.getElementById('search-input').value = '';
+            clearAllFilters();
+            document.getElementById('feed-container').scrollTop = 0;
+        }
+
+        // --- MULTI-SELECT COMPONENT ---
+        class MultiCheckboxSelect {
+            constructor(id, placeholder, onChangeCallback) {
+                this.id = id; this.placeholder = placeholder; this.onChangeCallback = onChangeCallback;
+                this.options = []; this.selected = new Set();
+                this.container = document.getElementById(id);
+                if(this.container) { this.renderTemplate(); this.setupEvents(); }
+            }
+            renderTemplate() {
+                this.container.innerHTML = `
+                    <div class="relative">
+                        <button type="button" class="w-full bg-white border border-slate-300 rounded-lg shadow-sm p-2 text-left flex justify-between items-center text-sm hover:border-indigo-400 transition-colors min-h-[40px]" data-toggle>
+                            <span class="truncate pr-2 text-slate-500" data-label>${this.placeholder}</span>
+                            <svg class="h-4 w-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="absolute z-50 w-full bg-white border border-slate-200 rounded-lg mt-1 hidden shadow-xl" data-menu>
+                            <div class="max-h-56 overflow-y-auto custom-scrollbar p-1.5 space-y-1" data-list></div>
+                        </div>
+                    </div>`;
+                this.button = this.container.querySelector('[data-toggle]');
+                this.label = this.container.querySelector('[data-label]');
+                this.menu = this.container.querySelector('[data-menu]');
+                this.list = this.container.querySelector('[data-list]');
+            }
+            setupEvents() {
+                this.button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('[data-menu]').forEach(menu => { if (menu !== this.menu) menu.classList.add('hidden'); });
+                    this.menu.classList.toggle('hidden');
+                });
+                this.menu.addEventListener('click', (e) => e.stopPropagation());
+                document.addEventListener('click', (e) => { if (!this.container.contains(e.target)) this.menu.classList.add('hidden'); });
+            }
+            setOptions(optionsArray) { this.options = optionsArray; this.renderOptions(); }
+            clear(triggerChange = true) { this.selected.clear(); this.renderOptions(); this.updateLabel(); if(triggerChange) this.onChangeCallback(); }
+            renderOptions() {
+                this.list.innerHTML = '';
+                if (this.options.length === 0) { this.list.innerHTML = `<div class="text-sm text-slate-400 p-3 italic text-center">No options available</div>`; return; }
+                this.options.forEach(opt => {
+                    const isChecked = this.selected.has(opt.value);
+                    const item = document.createElement('label');
+                    item.className = "flex items-start p-2 hover:bg-indigo-50 rounded-md cursor-pointer text-sm text-slate-700 transition-colors";
+                    item.innerHTML = `
+                        <input type="checkbox" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer mt-0.5 mr-2 shrink-0" value="${opt.value}" ${isChecked ? 'checked' : ''}>
+                        <span class="leading-tight">${opt.text}</span>`;
+                    item.querySelector('input').addEventListener('change', (e) => {
+                        if (e.target.checked) this.selected.add(opt.value); else this.selected.delete(opt.value);
+                        this.updateLabel(); this.onChangeCallback();
+                    });
+                    this.list.appendChild(item);
+                });
+            }
+            updateLabel() {
+                if (this.selected.size === 0) { this.label.innerText = this.placeholder; this.label.className = "truncate pr-2 text-slate-500"; }
+                else if (this.selected.size === 1) {
+                    const val = Array.from(this.selected)[0]; const opt = this.options.find(o => o.value === val);
+                    this.label.innerText = opt ? opt.text : val; this.label.className = "truncate pr-2 text-indigo-700 font-bold";
+                } else {
+                    this.label.innerText = `${this.selected.size} Selected`; this.label.className = "truncate pr-2 text-indigo-700 font-bold";
+                }
+            }
+            getValue() { return Array.from(this.selected); }
+            setValue(values, triggerChange = true) { this.selected = new Set(values); this.renderOptions(); this.updateLabel(); if(triggerChange) this.onChangeCallback(); }
+        }
+
+        // --- DATA FETCHING & FILTERING ---
+        document.addEventListener('DOMContentLoaded', () => {
+            tsTopic = new MultiCheckboxSelect("filter-topic", "All Topics", onTopicChange);
+            tsSubtopic = new MultiCheckboxSelect("filter-subtopic", "All Subtopics", filterData);
+            tsDifficulty = new MultiCheckboxSelect("filter-difficulty", "All Difficulties", filterData);
+            tsDifficulty.setOptions([{value: '1', text: '1 - Core'}, {value: '2', text: '2 - Extended'}, {value: '3', text: '3 - Hard'}]);
+            tsPaper = new MultiCheckboxSelect("filter-paper", "All Papers", filterData);
+            tsYear = new MultiCheckboxSelect("filter-year", "All Years", filterData);
+        });
+
+        // Some published sheets have a blank spacer row above the real header row (all cells
+        // empty, but the delimiters are still there so it doesn't count as a truly empty CSV
+        // line). Strip any such leading rows so the header row Papa.parse sees is the real one.
+        function stripLeadingBlankCsvRows(text) {
+            const lines = text.split(/\r\n|\n/);
+            let startIdx = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const stripped = lines[i].replace(/["',\s]/g, '');
+                if (stripped.length > 0) { startIdx = i; break; }
+                startIdx = i + 1;
+            }
+            return lines.slice(startIdx).join('\n');
+        }
+
+        function parsePapaCSV(text, opts) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(text, Object.assign({}, opts, {
+                    complete: (results) => resolve(results),
+                    error: (err) => reject(err)
+                }));
+            });
+        }
+
+        // Fetches + parses one CSV tab and appends its questions into allData/dataMap (does not
+        // replace what's already loaded -- that's what lets the HL toggle add HL questions on
+        // top of the SL set). `prefix` namespaces this batch's ids so multiple sources loaded
+        // together (e.g. 'sl' + 'hl') never collide.
+        async function loadQuestionSet(csvUrl, prefix) {
+            const finalUrl = csvUrl.replace('/pubhtml', '/pub?output=csv');
+            const res = await fetch(finalUrl);
+            if (!res.ok) throw new Error('Network error loading question set: ' + prefix);
+            let text = await res.text();
+            text = stripLeadingBlankCsvRows(text);
+
+            const results = await parsePapaCSV(text, { header: true, skipEmptyLines: true });
+            // Prefer the spreadsheet's own "Question ID" column (a permanent id like
+            // "0607_m26_22_Q1") when the sheet provides one -- that keeps a question's id stable
+            // across row insertions/reorders in the sheet, so Compile History / Reopen / Flag an
+            // Issue references stay valid even after the bank is edited. Sheets that don't have
+            // this column yet (e.g. IB, for now) fall back to the old position-based id.
+            // `_source` tracks which load batch (sl/hl) a row came from, independent of its id,
+            // so the HL toggle can still remove exactly the right rows either way.
+            const rows = (results.data || [])
+                .filter(q => getLatex(q).trim() !== "")
+                .map((q, i) => {
+                    const stableId = getVal(q, ['questionid']);
+                    const id = stableId && stableId.trim() ? stableId.trim() : `${prefix}_q_${i}`;
+                    return { ...q, id, _source: prefix };
+                });
+
+            allData = allData.concat(rows);
+            dataMap = new Map(allData.map(q => [q.id, q]));
+        }
+
+        function removeQuestionSet(prefix) {
+            allData = allData.filter(q => q._source !== prefix);
+            dataMap = new Map(allData.map(q => [q.id, q]));
+        }
+
+        function populateInitialDropdowns() {
+            const topics = [...new Set(allData.map(q => getTopic(q)))].filter(Boolean).sort();
+            const years = [...new Set(allData.map(q => getYear(q)))].filter(Boolean).sort();
+            const papers = [...new Set(allData.map(q => getPaper(q)))].filter(Boolean).sort();
+
+            tsTopic.setOptions(topics.map(t => ({value: t, text: t})));
+            tsYear.setOptions(years.map(y => ({value: y, text: y})));
+            tsPaper.setOptions(papers.map(p => ({value: p, text: p})));
+
+            updateSubTopics([]);
+        }
+
+        function onTopicChange() {
+            const selectedTopics = tsTopic.getValue() || [];
+            updateSubTopics(selectedTopics);
+            filterData();
+        }
+
+        function updateSubTopics(selectedTopics) {
+            const currentSelection = tsSubtopic.getValue() || [];
+
+            const pool = (!selectedTopics || selectedTopics.length === 0)
+                ? allData
+                : allData.filter(q => { const t = getTopic(q); return t && selectedTopics.includes(t); });
+
+            // A question can list several subtopics -- flatten them all together, then de-dupe,
+            // so each distinct subtopic appears exactly once in the filter regardless of how many
+            // questions (or how many subtopic columns on one question) mention it.
+            const relevantSubTopics = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean).sort();
+
+            tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
+            const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
+            tsSubtopic.setValue(validSelections, false);
+        }
+
+        function clearAllFilters() {
+            tsTopic.clear(false); tsSubtopic.clear(false); tsDifficulty.clear(false);
+            tsPaper.clear(false); tsYear.clear(false);
+            document.getElementById('search-input').value = ""; searchQuery = "";
+            updateSubTopics([]); filterData();
+        }
+
+        function handleSearch(event) {
+            searchQuery = event.target.value.toLowerCase().trim();
+            filterData();
+        }
+
+        function filterData() {
+            const topics = tsTopic.getValue();
+            const subtopics = tsSubtopic.getValue();
+            const difficulties = tsDifficulty.getValue();
+            const papers = tsPaper.getValue();
+            const years = tsYear.getValue();
+
+            filteredData = allData.filter(q => {
+                const qTopic = getTopic(q); const qSubtopics = getSubtopics(q);
+                const qDiff = getDifficulty(q); const qYear = getYear(q);
+                let qPaperStr = getPaper(q).replace(/\D/g, '');
+
+                const matchTopic = topics.length === 0 || topics.includes(qTopic);
+                // OR-match: a question surfaces if ANY of its subtopics is selected. Since this
+                // still tests one question object per iteration, a multi-subtopic match never
+                // produces more than one card for that question -- no duplicates.
+                const matchSubtopic = subtopics.length === 0 || qSubtopics.some(st => subtopics.includes(st));
+                const matchDiff = difficulties.length === 0 || difficulties.includes(qDiff);
+                const matchPaper = papers.length === 0 || papers.some(p => qPaperStr.startsWith(p.replace(/\D/g, '')));
+                const matchYear = years.length === 0 || years.includes(qYear);
+
+                const rawLatex = getLatex(q).toLowerCase();
+                const markScheme = getMarkScheme(q).toLowerCase();
+                const qId = (q.id || '').toLowerCase();
+                const matchSearch = searchQuery === "" ||
+                                    qId.includes(searchQuery) ||
+                                    rawLatex.includes(searchQuery) || markScheme.includes(searchQuery) ||
+                                    qTopic.toLowerCase().includes(searchQuery) || qSubtopics.some(st => st.toLowerCase().includes(searchQuery));
+
+                return matchTopic && matchSubtopic && matchDiff && matchPaper && matchYear && matchSearch;
+            });
+
+            currentPage = 1;
+            if (currentRole === 'teacher') updateStats();
+            renderCards();
+        }
+
+        // --- CHARTS (Teacher Only) ---
+        function initCharts() {
+            const createConfig = (type, colorBase) => ({
+                type: type,
+                data: { labels: [], datasets: [{ data: [], backgroundColor: colorBase, borderWidth: 0, borderRadius: type === 'bar' ? 4 : 0 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: type === 'doughnut', position: 'right', labels: { boxWidth: 10, font: { size: 10, family: "'Inter', sans-serif" } } } },
+                    scales: type === 'bar' ? { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } : {}
+                }
+            });
+
+            marksChart = new Chart(document.getElementById('marksChart'), createConfig('bar', '#818cf8'));
+            // Green -> red ramp with enough steps for IB's 7-level scale (IGCSE's 3-level scale
+            // just uses the first 3 colors).
+            difficultyChart = new Chart(document.getElementById('difficultyChart'), createConfig('doughnut', ['#34d399', '#a3e635', '#fbbf24', '#fb923c', '#f97316', '#f87171', '#dc2626']));
+            topicChart = new Chart(document.getElementById('topicChart'), createConfig('doughnut', ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']));
+        }
+
+        function updateStats() {
+            if(!chartsInitialized) return;
+            const count = filteredData.length;
+            document.getElementById('result-count').innerText = `${count} Matches Found`;
+
+            // The difficulty scale's length (and meaning) depends on the active syllabus -- 3
+            // levels for IGCSE, 7 for IB -- so build the bucket map from whatever difficulty
+            // options are currently loaded rather than assuming a fixed 1-3 range.
+            const diffOptions = (tsDifficulty && tsDifficulty.options && tsDifficulty.options.length)
+                ? tsDifficulty.options
+                : DATA_SOURCES.IGCSE.difficulty;
+            const diffMap = {}; diffOptions.forEach(o => { diffMap[o.value] = 0; });
+
+            const marksMap = {}; const topicMap = {};
+
+            filteredData.forEach(q => {
+                const marks = getMarks(q) || '0'; marksMap[marks] = (marksMap[marks] || 0) + 1;
+                const diff = getDifficulty(q); if (diff && diffMap.hasOwnProperty(diff)) diffMap[diff] = (diffMap[diff] || 0) + 1;
+                // When narrowed to one topic, group by subtopic(s) instead. A question with several
+                // subtopics is still counted once, under its joined subtopic label.
+                const subtopicLabel = getSubtopics(q).join(' + ');
+                const label = tsTopic.getValue().length === 1 ? (subtopicLabel || getTopic(q)) : getTopic(q);
+                if(label) topicMap[label] = (topicMap[label] || 0) + 1;
+            });
+
+            marksChart.data.labels = Object.keys(marksMap); marksChart.data.datasets[0].data = Object.values(marksMap); marksChart.update();
+            difficultyChart.data.labels = diffOptions.map(o => o.text);
+            difficultyChart.data.datasets[0].data = diffOptions.map(o => diffMap[o.value] || 0);
+            difficultyChart.update();
+            topicChart.data.labels = Object.keys(topicMap).map(t => t.length > 15 ? t.substring(0, 15) + '...' : t); topicChart.data.datasets[0].data = Object.values(topicMap); topicChart.update();
+        }
+
+        // --- RENDER LOGIC ---
+        function renderCards() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * itemsPerPage;
+            const pageData = filteredData.slice(start, start + itemsPerPage);
+
+            if(filteredData.length === 0) {
+                container.innerHTML = `
+                <div class="py-20 flex flex-col items-center justify-center text-slate-400">
+                    <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <p class="text-lg font-medium">No questions match your current filters.</p>
+                </div>`;
+            }
+
+            pageData.forEach(q => {
+                const isSelected = selectedIds.has(q.id);
+                const qTopic = getTopic(q); const qSubtopics = getSubtopics(q);
+                const diffVal = getDifficulty(q);
+                const diffBadge = getDifficultyBadgeClasses(diffVal);
+
+                const qImg = getQImage(q); const msImg = getMSImage(q);
+
+                const cardHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border ${isSelected && currentRole === 'teacher' ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-slate-200'} transition-all overflow-hidden fade-in">
+                        <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3">
+                            <div class="flex items-center gap-3">
+                                ${currentRole === 'teacher' ? `
+                                    <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleQuestionSelection('${q.id}')" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                                ` : ''}
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    ${currentRole === 'teacher' && !/^(sl|hl)_q_\d+$/.test(q.id) ? `<span class="px-2.5 py-1 bg-slate-100 text-slate-500 rounded text-[10px] font-mono font-bold" title="Question ID -- use this to look up or report this exact question">${escapeHTML(q.id)}</span>` : ''}
+                                    <span class="px-2.5 py-1 bg-white border border-slate-200 rounded text-xs font-bold text-slate-600">${getYear(q)} ${getPaper(q) ? '- P'+getPaper(q) : ''}</span>
+                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${escapeHTML(qTopic)}</span>
+                                    ${qSubtopics.map(st => `<span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded text-xs font-bold">${escapeHTML(st)}</span>`).join('')}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-1 rounded text-xs font-bold ${diffBadge}">Diff: ${diffVal || '?'}</span>
+                                <span class="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-xs font-bold">${getMarks(q) || 0} Marks</span>
+                                <button onclick="openFlagModal('${q.id}')" title="Flag an issue with this question" class="text-slate-300 hover:text-rose-500 transition-colors p-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="space-y-3">
+                                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question</h3>
+                                ${qImg ? imgWithSpinnerHTML(qImg, 'Question', 'border-slate-200') : `<div class="p-4 bg-slate-50 border border-dashed border-slate-300 rounded text-xs text-slate-500 italic">No Question Image Provided</div>`}
+                            </div>
+                            <div class="space-y-3 border-t lg:border-t-0 lg:border-l border-slate-100 pt-4 lg:pt-0 lg:pl-6">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Mark Scheme</h3>
+                                    ${currentRole === 'student' ? `<button onclick="toggleMS(this)" class="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded-full uppercase transition-colors">Show Solution</button>` : ''}
+                                </div>
+                                <div class="ms-content ${currentRole === 'student' ? 'hidden' : ''}">
+                                    ${msImg
+                                        ? (currentRole === 'student'
+                                            // Students only see this once they click "Show Solution" -- don't even set
+                                            // src yet, so the browser never fetches it unless they actually ask for it.
+                                            ? deferredImgWithSpinnerHTML(msImg, 'Mark Scheme', 'border-emerald-100')
+                                            : imgWithSpinnerHTML(msImg, 'Mark Scheme', 'border-emerald-100'))
+                                        : `<div class="p-4 bg-emerald-50 border border-dashed border-emerald-200 rounded text-xs text-emerald-600 italic">No MS Image Provided</div>`}
+                                </div>
+                                ${currentRole === 'teacher' ? `
+                                    <div class="mt-6">
+                                        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-xs text-indigo-500 font-bold hover:underline mb-2 flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                            View Raw LaTeX
+                                        </button>
+                                        <div class="hidden bg-slate-900 p-4 rounded-xl border border-slate-700 max-h-60 overflow-y-auto custom-scrollbar">
+                                            <pre class="text-[11px] text-emerald-400 font-mono whitespace-pre-wrap">${escapeHTML(getLatex(q))}</pre>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHTML);
+            });
+
+            renderPagination(totalPages);
+        }
+
+        function toggleMS(btn) {
+            const content = btn.parentElement.nextElementSibling;
+            content.classList.toggle('hidden');
+            btn.innerText = content.classList.contains('hidden') ? 'Show Solution' : 'Hide Solution';
+            // First reveal: kick off the actual image fetch now (it was never requested on
+            // render, so students who never click "Show Solution" never pay for that download).
+            const img = content.querySelector('img[data-src]');
+            if (img && !content.classList.contains('hidden')) {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+            }
+        }
+
+        // --- SELECTION HELPERS (keep selectedIds Set and selectionOrder Array in sync) ---
+        function addSelection(id) {
+            if (!selectedIds.has(id)) {
+                selectedIds.add(id);
+                selectionOrder.push(id);
+            }
+        }
+
+        function removeSelection(id) {
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
+                const idx = selectionOrder.indexOf(id);
+                if (idx > -1) selectionOrder.splice(idx, 1);
+            }
+        }
+
+        function toggleQuestionSelection(id) {
+            if (currentRole !== 'teacher') return;
+            if (selectedIds.has(id)) removeSelection(id); else addSelection(id);
+            updateExportBar(); renderCards();
+        }
+
+        function selectAllOnPage() {
+            if(currentRole !== 'teacher') return;
+            const start = (currentPage - 1) * itemsPerPage;
+            const pageData = filteredData.slice(start, start + itemsPerPage);
+            pageData.forEach(q => addSelection(q.id));
+            updateExportBar(); renderCards();
+        }
+
+        function clearSelection() {
+            selectedIds.clear(); selectionOrder = [];
+            updateExportBar(); renderCards();
+        }
+
+        function updateExportBar() {
+            if(currentRole !== 'teacher') return;
+            const count = selectedIds.size;
+            document.getElementById('nav-count').innerText = count;
+            document.getElementById('modal-sel-count').innerText = count;
+
+            let totalMarks = 0;
+            selectedIds.forEach(id => {
+                const q = dataMap.get(id);
+                if(q) totalMarks += parseInt(getMarks(q) || 0);
+            });
+            document.getElementById('nav-marks').innerText = totalMarks;
+
+            const bar = document.getElementById('export-bar');
+            if (count > 0) bar.classList.remove('translate-y-full');
+            else bar.classList.add('translate-y-full');
+        }
+
+        function renderPagination(totalPages) {
+            const controls = document.getElementById('pagination-controls');
+            const bubbles = document.getElementById('page-bubbles');
+
+            if (totalPages <= 1) { controls.classList.add('hidden'); return; }
+            controls.classList.remove('hidden');
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === totalPages;
+
+            bubbles.innerHTML = '';
+            let startPage = Math.max(1, currentPage - 2); let endPage = Math.min(totalPages, currentPage + 2);
+            if (currentPage <= 2) endPage = Math.min(totalPages, 5);
+            if (currentPage >= totalPages - 1) startPage = Math.max(1, totalPages - 4);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const b = document.createElement('button');
+                b.className = `w-9 h-9 rounded-lg text-sm font-bold transition-colors shadow-sm ${currentPage === i ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-50'}`;
+                b.innerText = i;
+                b.onclick = () => { currentPage = i; renderCards(); document.getElementById('feed-container').scrollTo({top: 0, behavior: 'smooth'}); };
+                bubbles.appendChild(b);
+            }
+        }
+
+        function changePage(dir) { currentPage += dir; renderCards(); document.getElementById('feed-container').scrollTo({top: 0, behavior: 'smooth'}); }
+
+        // --- QUESTION ORDER (reordering selected questions before export) ---
+        function renderOrderList(reset = false) {
+            if (reset) selectionOrder = [...originalOrderSnapshot];
+
+            const container = document.getElementById('order-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (selectionOrder.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-400 italic text-center p-3">No questions selected yet.</div>`;
+                return;
+            }
+
+            selectionOrder.forEach((id, index) => {
+                const q = dataMap.get(id);
+                if (!q) return;
+                const diffVal = getDifficulty(q);
+                const diffBadge = getDifficultyBadgeClasses(diffVal);
+
+                const row = document.createElement('div');
+                row.className = "order-row flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-2 shadow-sm";
+                row.dataset.id = id;
+                row.innerHTML = `
+                    <span class="drag-handle text-slate-300 hover:text-slate-500 select-none px-1" title="Drag to reorder">&#8942;&#8942;</span>
+                    <span class="w-6 text-center text-xs font-bold text-slate-400 shrink-0">${index + 1}</span>
+                    <span class="flex-1 text-xs text-slate-700 truncate">${getTopic(q)} &mdash; ${getSubtopics(q).join(', ')}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${diffBadge}">Diff ${diffVal || '?'}</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 bg-slate-100 text-slate-600">${getMarks(q) || 0}m</span>
+                    <div class="flex flex-col shrink-0">
+                        <button onclick="moveSelection('${id}', -1)" class="text-slate-400 hover:text-indigo-600 leading-none text-[10px] px-1" title="Move up">&#9650;</button>
+                        <button onclick="moveSelection('${id}', 1)" class="text-slate-400 hover:text-indigo-600 leading-none text-[10px] px-1" title="Move down">&#9660;</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            initSortable();
+        }
+
+        function initSortable() {
+            const container = document.getElementById('order-list');
+            if (!container || typeof Sortable === 'undefined') return;
+            if (orderSortable) { orderSortable.destroy(); orderSortable = null; }
+            orderSortable = new Sortable(container, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                onEnd: function() {
+                    selectionOrder = Array.from(container.children).map(el => el.dataset.id).filter(Boolean);
+                    renderOrderList();
+                }
+            });
+        }
+
+        function moveSelection(id, dir) {
+            const idx = selectionOrder.indexOf(id);
+            if (idx === -1) return;
+            const newIdx = idx + dir;
+            if (newIdx < 0 || newIdx >= selectionOrder.length) return;
+            [selectionOrder[idx], selectionOrder[newIdx]] = [selectionOrder[newIdx], selectionOrder[idx]];
+            renderOrderList();
+        }
+
+        function sortSelectionByDifficulty(descending = false) {
+            selectionOrder.sort((a, b) => {
+                const qa = dataMap.get(a); const qb = dataMap.get(b);
+                const da = parseInt(getDifficulty(qa)) || 0;
+                const db = parseInt(getDifficulty(qb)) || 0;
+                return descending ? db - da : da - db;
+            });
+            renderOrderList();
+        }
+
+        // Fisher-Yates shuffle -- handy for generating varied versions of the same paper.
+        function randomizeSelectionOrder() {
+            for (let i = selectionOrder.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [selectionOrder[i], selectionOrder[j]] = [selectionOrder[j], selectionOrder[i]];
+            }
+            renderOrderList();
+        }
+
+        // --- EXPORT MODAL ---
+        function openExportModal() {
+            originalOrderSnapshot = [...selectionOrder];
+            document.getElementById('export-modal').classList.remove('hidden'); document.getElementById('export-modal').classList.add('flex');
+            document.getElementById('textarea-container').classList.add('hidden');
+            renderOrderList();
+        }
+        function closeExportModal() { document.getElementById('export-modal').classList.add('hidden'); document.getElementById('export-modal').classList.remove('flex'); }
+
+        // Builds the LaTeX source for a given export type. Shared by generateCode() (copy/paste
+        // into the textarea) and openInOverleaf() (send straight to Overleaf for a real pdflatex
+        // compile) so both paths always produce byte-identical documents.
+        function buildLatexDocument(type) {
+            const spacing = document.getElementById('doc-spacing').value || '\\vspace{3cm}';
+            const title = document.getElementById('doc-title').value || 'Assessment';
+
+            let questions = []; let msRows = ""; let qCounter = 1;
+            selectionOrder.forEach(id => {
+                const q = dataMap.get(id);
+                if (!q) return;
+                questions.push(getLatex(q));
+                const ms = getMarkScheme(q) || '\\textit{No mark scheme provided.}';
+                msRows += `    \\textbf{${qCounter}} & \\parbox[t]{0.82\\textwidth}{${ms}} \\\\\n    \\midrule\n`;
+                qCounter++;
+            });
+
+            const joinedQuestions = questions.join(`\n\n${spacing}\n\n`);
+            const tikzLibraries = `\\usetikzlibrary{calc, intersections, angles, quotes, arrows.meta, decorations.pathreplacing, decorations.markings, patterns, positioning}`;
+            let finalOutput = "";
+
+            if (type === 'raw') { finalOutput = joinedQuestions; }
+            else if (type === 'full_no_ms') {
+                finalOutput = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amsmath, amssymb, geometry, tikz, enumitem}\n${tikzLibraries}\n\\geometry{margin=1in}\n\n\\begin{document}\n\n\\begin{center}\n    \\Large\\textbf{${title}} \\\\[0.5cm]\n    \\normalsize Name: \\makebox[3in]{\\hrulefill} \\hfill Date: \\makebox[1.5in]{\\hrulefill}\n\\end{center}\n\n\\vspace{1cm}\n\n\\begin{enumerate}[label=\\arabic*.]\n${joinedQuestions}\n\\end{enumerate}\n\n\\end{document}`;
+            } else if (type === 'full_with_ms') {
+                finalOutput = `\\documentclass[12pt,a4paper]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amsmath, amssymb, geometry, tikz, enumitem, longtable, booktabs}\n${tikzLibraries}\n\\geometry{margin=1in}\n\n\\begin{document}\n\n% --- EXAM SECTION ---\n\\begin{center}\n    \\Large\\textbf{${title}} \\\\[0.5cm]\n    \\normalsize Name: \\makebox[3in]{\\hrulefill} \\hfill Date: \\makebox[1.5in]{\\hrulefill}\n\\end{center}\n\n\\vspace{1cm}\n\n\\begin{enumerate}[label=\\arabic*.]\n${joinedQuestions}\n\\end{enumerate}\n\n\\newpage\n\n% --- CAMBRIDGE INTERNATIONALLY STRUCTURED MARK SCHEME SECTION ---\n\\begin{center}\n    \\Large\\textbf{Mark Scheme \\\\ ${title}}\n\\end{center}\n\\vspace{1cm}\n\n\\setlength{\\extrarowheight}{4pt}\n\\begin{longtable}{@{} p{0.12\\textwidth} p{0.88\\textwidth} @{}}\n    \\toprule\n    \\textbf{Question} & \\textbf{Answer / Guidance / Marks} \\\\\n    \\midrule\n${msRows}    \\bottomrule\n\\end{longtable}\n\n\\end{document}`;
+            }
+
+            return finalOutput;
+        }
+
+        function generateCode(type) {
+            const finalOutput = buildLatexDocument(type);
+            document.getElementById('textarea-container').classList.remove('hidden'); document.getElementById('textarea-container').classList.add('flex');
+            document.getElementById('export-textarea').value = finalOutput; copyLaTeX();
+            logCompileEvent(type);
+        }
+
+        function copyLaTeX() {
+            const textarea = document.getElementById('export-textarea'); const btn = document.getElementById('copy-btn');
+            textarea.select(); textarea.setSelectionRange(0, 999999);
+            try {
+                document.execCommand('copy');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                btn.classList.replace('bg-emerald-500', 'bg-indigo-600'); btn.classList.replace('hover:bg-emerald-600', 'hover:bg-indigo-700');
+                setTimeout(() => { btn.innerHTML = originalText; btn.classList.replace('bg-indigo-600', 'bg-emerald-500'); btn.classList.replace('hover:bg-indigo-700', 'hover:bg-emerald-600'); }, 2000);
+            } catch (err) { alert("Auto-copy blocked by browser. Please copy manually."); }
+        }
+
+        // --- OPEN IN OVERLEAF (real pdflatex compile, byte-identical to your usual workflow) ---
+        // Sends the exact same LaTeX that buildLatexDocument() produces to Overleaf's documented
+        // "Open in Overleaf" endpoint (https://www.overleaf.com/devs -> "Building your own
+        // integration"), which creates a new project with that source pre-loaded as main.tex.
+        // Overleaf compiles it with the real pdfTeX toolchain, so the output is pixel-identical
+        // to what you'd get pasting the code in manually -- proportions, TikZ, spacing, all of it.
+        function openInOverleaf(type) {
+            if (selectionOrder.length === 0) { alert('No questions selected.'); return; }
+
+            const latexSource = buildLatexDocument(type);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'https://www.overleaf.com/docs';
+            form.target = '_blank';
+            form.style.display = 'none';
+
+            const snipField = document.createElement('input');
+            snipField.type = 'hidden';
+            snipField.name = 'snip';
+            snipField.value = latexSource;
+            form.appendChild(snipField);
+
+            const nameField = document.createElement('input');
+            nameField.type = 'hidden';
+            nameField.name = 'snip_name';
+            nameField.value = 'main.tex';
+            form.appendChild(nameField);
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            logCompileEvent('overleaf_' + type);
+        }
+
+        // --- SILENT GOOGLE FORM SUBMISSION (shared by Flag an Issue + Compile History) ---
+        // Posts values to a Google Form in the background via a hidden iframe target, so the
+        // person never sees the form or leaves the page -- same idea as openInOverleaf() above,
+        // just targeting an invisible iframe instead of a new tab. `fieldMap` is {entryId: value};
+        // entries with an empty entryId (not configured yet) are skipped.
+        function submitToGoogleForm(formAction, fieldMap) {
+            if (!formAction) return false;
+
+            let iframe = document.getElementById('hidden-form-target');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'hidden-form-target';
+                iframe.name = 'hidden-form-target';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = formAction;
+            form.target = 'hidden-form-target';
+            form.style.display = 'none';
+
+            Object.entries(fieldMap).forEach(([entryId, value]) => {
+                if (!entryId) return;
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = entryId;
+                input.value = value == null ? '' : String(value);
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+            setTimeout(() => { if (form.parentNode) form.parentNode.removeChild(form); }, 1000);
+            return true;
+        }
+
+        // --- COMPILE HISTORY ---
+        const COMPILE_EXPORT_TYPE_LABELS = {
+            raw: 'Raw Snippets',
+            full_no_ms: 'Full Doc (Questions)',
+            full_with_ms: 'Full Doc + Mark Scheme',
+            overleaf_raw: 'Overleaf (Raw Snippets)',
+            overleaf_full_no_ms: 'Overleaf (Questions)',
+            overleaf_full_with_ms: 'Overleaf (+ Mark Scheme)'
+        };
+
+        function logCompileEvent(type) {
+            if (!COMPILE_LOG_CONFIG.formAction || selectionOrder.length === 0) return;
+
+            const title = document.getElementById('doc-title').value || 'Assessment';
+            let totalMarks = 0;
+            const topics = new Set();
+            selectionOrder.forEach(id => {
+                const q = dataMap.get(id);
+                if (!q) return;
+                totalMarks += parseInt(getMarks(q) || 0, 10) || 0;
+                const t = getTopic(q); if (t) topics.add(t);
+            });
+
+            submitToGoogleForm(COMPILE_LOG_CONFIG.formAction, {
+                [COMPILE_LOG_CONFIG.entryTeacher]: currentUsername || '',
+                [COMPILE_LOG_CONFIG.entrySyllabus]: getCurrentSyllabusLabel(),
+                [COMPILE_LOG_CONFIG.entryTitle]: title,
+                [COMPILE_LOG_CONFIG.entryQuestionCount]: selectionOrder.length,
+                [COMPILE_LOG_CONFIG.entryQuestionIds]: selectionOrder.join(';'),
+                [COMPILE_LOG_CONFIG.entryTotalMarks]: totalMarks,
+                [COMPILE_LOG_CONFIG.entryExportType]: COMPILE_EXPORT_TYPE_LABELS[type] || type,
+                [COMPILE_LOG_CONFIG.entryTopics]: Array.from(topics).join(', ')
+            });
+        }
+
+        async function openHistoryModal() {
+            const modal = document.getElementById('history-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            const listEl = document.getElementById('history-list');
+
+            if (!COMPILE_LOG_CONFIG.historyCsvUrl) {
+                listEl.innerHTML = `<p class="text-sm text-slate-400 italic p-6 text-center">Compile history isn't set up yet.</p>`;
+                return;
+            }
+
+            listEl.innerHTML = `<p class="text-sm text-slate-400 italic p-6 text-center">Loading...</p>`;
+            try {
+                const cacheBustUrl = COMPILE_LOG_CONFIG.historyCsvUrl + (COMPILE_LOG_CONFIG.historyCsvUrl.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+                const res = await fetch(cacheBustUrl);
+                if (!res.ok) throw new Error('Network error');
+                const text = await res.text();
+                const results = await parsePapaCSV(stripLeadingBlankCsvRows(text), { header: true, skipEmptyLines: true });
+                const rows = (results.data || []).filter(r => getVal(r, ['teacher', 'professor', 'professora']).toLowerCase() === (currentUsername || '').toLowerCase());
+                rows.reverse(); // Forms append in submission order -- newest last, so flip it
+                renderHistoryRows(rows);
+            } catch (e) {
+                listEl.innerHTML = `<p class="text-sm text-rose-500 italic p-6 text-center">Couldn't load history right now.</p>`;
+            }
+        }
+
+        function renderHistoryRows(rows) {
+            const listEl = document.getElementById('history-list');
+            if (rows.length === 0) {
+                listEl.innerHTML = `<p class="text-sm text-slate-400 italic p-6 text-center">No compiled assessments yet.</p>`;
+                return;
+            }
+            listEl.innerHTML = rows.map(r => {
+                // Google auto-names the timestamp column in the account's own language (e.g.
+                // "Carimbo de data/hora" for Portuguese), so match both.
+                const timestamp = getVal(r, ['timestamp', 'carimbodedatahora']) || '';
+                const syllabus = getVal(r, ['syllabus', 'programa', 'curriculo']) || '';
+                const title = getVal(r, ['assessmenttitle', 'title', 'titulo', 'nomedaavaliacao']) || 'Assessment';
+                const qCount = getVal(r, ['questioncount', 'quantidadedequestoes', 'numerodequestoes']) || '?';
+                const marks = getVal(r, ['totalmarks', 'notatotal', 'pontuacaototal']) || '?';
+                const exportType = getVal(r, ['exporttype', 'tipodeexportacao']) || '';
+                const topics = getVal(r, ['topicscovered', 'topics', 'topicosabordados', 'assuntos']) || '';
+                const questionIds = getVal(r, ['questionids', 'idsdasquestoes', 'iddasquestoes', 'idsquestoes']) || '';
+                return `
+                    <div class="border border-slate-200 rounded-lg p-3 bg-white" data-history-ids="${escapeHTML(questionIds)}" data-history-syllabus="${escapeHTML(syllabus)}">
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold text-slate-800 truncate">${escapeHTML(title)}</p>
+                                <p class="text-[11px] text-slate-400 mt-0.5">${escapeHTML(timestamp)} &middot; ${escapeHTML(syllabus)}</p>
+                            </div>
+                            <span class="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded shrink-0 whitespace-nowrap">${escapeHTML(exportType)}</span>
+                        </div>
+                        <div class="flex gap-3 mt-2 text-[11px] text-slate-500">
+                            <span>${escapeHTML(qCount)} Qs</span>
+                            <span>${escapeHTML(marks)} Marks</span>
+                        </div>
+                        ${topics ? `<p class="text-[11px] text-slate-400 mt-1.5 truncate" title="${escapeHTML(topics)}">${escapeHTML(topics)}</p>` : ''}
+                        ${questionIds ? `<button onclick="reopenHistoryEntry(this)" class="mt-2 w-full text-[11px] font-bold text-indigo-600 hover:text-white hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded-lg py-1.5 transition-colors">Reopen</button>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.add('hidden');
+            document.getElementById('history-modal').classList.remove('flex');
+        }
+
+        // Restores a past assessment's exact question set from its stored Question IDs and jumps
+        // straight into the export modal. Only questions that exist in the currently loaded
+        // syllabus can be restored -- if the teacher is on a different board/course than the one
+        // the assessment was compiled under, some or all ids won't be found in dataMap.
+        function reopenHistoryEntry(btnEl) {
+            const card = btnEl.closest('[data-history-ids]');
+            if (!card) return;
+            const ids = (card.dataset.historyIds || '').split(';').map(s => s.trim()).filter(Boolean);
+            const historySyllabus = card.dataset.historySyllabus || 'that syllabus';
+            if (ids.length === 0) return;
+
+            const found = ids.filter(id => dataMap.has(id));
+            if (found.length === 0) {
+                alert(`None of this assessment's questions are available right now. Switch to ${historySyllabus} and try Reopen again.`);
+                return;
+            }
+            if (found.length < ids.length) {
+                alert(`Heads up: ${ids.length - found.length} of ${ids.length} question(s) from this assessment aren't available (wrong syllabus loaded, or removed from the bank). Reopening with the remaining ${found.length}.`);
+            }
+
+            selectedIds = new Set(found);
+            selectionOrder = [...found];
+            updateExportBar();
+            renderCards();
+            closeHistoryModal();
+            openExportModal();
+        }
+
+        // --- FLAG AN ISSUE ---
+        function openFlagModal(id) {
+            flaggingQuestionId = id;
+            document.getElementById('flag-note').value = '';
+
+            const optsHTML = FLAG_ISSUE_TYPES.map((label, i) => `
+                <label class="flex items-center gap-2 p-2 rounded-md hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
+                    <input type="radio" name="flag-issue-type" value="${escapeHTML(label)}" ${i === 0 ? 'checked' : ''} class="text-rose-600 focus:ring-rose-500">
+                    ${escapeHTML(label)}
+                </label>`).join('');
+            document.getElementById('flag-issue-options').innerHTML = optsHTML;
+
+            const configured = !!FLAG_ISSUE_CONFIG.formAction;
+            document.getElementById('flag-modal-body').classList.toggle('hidden', !configured);
+            document.getElementById('flag-modal-unconfigured').classList.toggle('hidden', configured);
+            document.getElementById('flag-modal-success').classList.add('hidden');
+
+            const modal = document.getElementById('flag-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+        }
+
+        function closeFlagModal() {
+            const modal = document.getElementById('flag-modal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+            flaggingQuestionId = null;
+        }
+
+        function submitFlag() {
+            const q = dataMap.get(flaggingQuestionId);
+            if (!q) { closeFlagModal(); return; }
+
+            const selected = document.querySelector('input[name="flag-issue-type"]:checked');
+            const issueType = selected ? selected.value : FLAG_ISSUE_TYPES[0];
+            const note = document.getElementById('flag-note').value.trim();
+            const ref = `${getYear(q)} ${getPaper(q) ? 'P' + getPaper(q) : ''} · ${getTopic(q)} · ${getSubtopics(q).join(', ')} · Diff ${getDifficulty(q) || '?'}`;
+
+            submitToGoogleForm(FLAG_ISSUE_CONFIG.formAction, {
+                [FLAG_ISSUE_CONFIG.entryIssueType]: issueType,
+                [FLAG_ISSUE_CONFIG.entryReporter]: currentUsername || currentRole || 'unknown',
+                [FLAG_ISSUE_CONFIG.entrySyllabus]: getCurrentSyllabusLabel(),
+                [FLAG_ISSUE_CONFIG.entryQuestionRef]: ref,
+                [FLAG_ISSUE_CONFIG.entryNote]: note,
+                [FLAG_ISSUE_CONFIG.entryQuestionId]: q.id
+            });
+
+            document.getElementById('flag-modal-body').classList.add('hidden');
+            document.getElementById('flag-modal-success').classList.remove('hidden');
+            setTimeout(closeFlagModal, 1200);
+        }
+
+        function escapeHTML(str) { return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
+
+        // Some hosted images (question/mark-scheme PNGs on the free image host) take a while
+        // on a first hit -- a cold-cache penalty on the host's side, not anything about the
+        // image itself. These two helpers wrap an <img> in a spinner overlay so that wait is
+        // visible instead of a blank box, with a delayed "open it directly" escape hatch for
+        // the rare case it drags on. imgWithSpinnerHTML is for eager (already-src'd) images;
+        // deferredImgWithSpinnerHTML is for the student mark-scheme image, which only gets its
+        // src set on "Show Solution" (see toggleMS).
+        function imgWithSpinnerHTML(url, altText, borderClass) {
+            return `<div class="img-loading-wrap">
+                <div class="img-spinner-overlay">
+                    <div class="spinner-dark"></div>
+                    <div class="img-slow-hint">Still loading&hellip; <a href="${url}" target="_blank" rel="noopener" class="underline font-semibold">open image directly</a></div>
+                </div>
+                <img src="${url}" loading="lazy" decoding="async" onload="clearImgOverlay(this)" onerror="handleImgError(this)" class="question-img ${borderClass}" alt="${altText}">
+            </div>`;
+        }
+
+        function deferredImgWithSpinnerHTML(url, altText, borderClass) {
+            return `<div class="img-loading-wrap">
+                <div class="img-spinner-overlay">
+                    <div class="spinner-dark"></div>
+                    <div class="img-slow-hint">Still loading&hellip; <a href="${url}" target="_blank" rel="noopener" class="underline font-semibold">open image directly</a></div>
+                </div>
+                <img data-src="${url}" onload="clearImgOverlay(this)" onerror="handleImgError(this)" class="question-img ${borderClass}" alt="${altText}">
+            </div>`;
+        }
+
+        function clearImgOverlay(img) {
+            const wrap = img.closest('.img-loading-wrap');
+            const overlay = wrap && wrap.querySelector('.img-spinner-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        // Question/Mark Scheme images occasionally fail a single load (slow connection, a
+        // transient hiccup from the image host) and were previously left as a browser's raw
+        // broken-image icon with no way to recover short of a full page reload. Now: retry once
+        // automatically with a cache-busting param, and if that also fails, swap in a clear
+        // message instead of a silently-broken icon.
+        function handleImgError(img) {
+            if (img.dataset.retried) {
+                const div = document.createElement('div');
+                div.className = 'p-4 bg-rose-50 border border-dashed border-rose-300 rounded text-xs text-rose-600 italic';
+                div.textContent = "Image failed to load. Check your connection and reopen this question, or use “Flag an Issue” if it keeps happening.";
+                const wrap = img.closest('.img-loading-wrap');
+                (wrap || img).replaceWith(div);
+                return;
+            }
+            img.dataset.retried = '1';
+            const src = img.src.split('#')[0];
+            setTimeout(() => { img.src = src + (src.includes('?') ? '&' : '?') + '_retry=' + Date.now(); }, 600);
+        }
+    </script>
+</body>
+</html>
