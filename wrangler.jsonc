@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "igcse-question-bank",
+  "compatibility_date": "2026-08-31",
+  "assets": {
+    "directory": "."
+  }
+}
