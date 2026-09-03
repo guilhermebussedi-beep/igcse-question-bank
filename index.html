@@ -237,6 +237,22 @@
                     </div>
                 </div>
 
+                <!-- Feed toolbar: how many questions are shown, and how many to show per page -->
+                <div id="feed-toolbar" class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <span id="showing-range" class="text-sm font-medium text-slate-500"></span>
+                    <label class="flex items-center gap-2 text-sm text-slate-600">
+                        <span class="font-medium">Questions per page</span>
+                        <select id="page-size" onchange="changePageSize(this.value)"
+                                class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-semibold bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer">
+                            <option value="12">12</option>
+                            <option value="24">24</option>
+                            <option value="48">48</option>
+                            <option value="96">96</option>
+                            <option value="all">All</option>
+                        </select>
+                    </label>
+                </div>
+
                 <!-- Question Cards Container -->
                 <div id="questions-container" class="space-y-6"></div>
 
@@ -581,7 +597,15 @@
         let flaggingQuestionId = null; // question currently open in the Flag an Issue modal
         let searchQuery = "";
         let currentPage = 1;
-        const itemsPerPage = 12;
+        // How many question cards to show per page. "All" is stored as a large finite
+        // number rather than Infinity, so the page-offset arithmetic below stays valid.
+        const ALL_PER_PAGE = 100000;
+        const PAGE_SIZE_KEY = 'qbank.pageSize';
+        let itemsPerPage = 12;
+        try {
+            const saved = localStorage.getItem(PAGE_SIZE_KEY);
+            if (saved) itemsPerPage = (saved === 'all') ? ALL_PER_PAGE : (parseInt(saved, 10) || 12);
+        } catch (e) { /* storage unavailable -- fall back to the default */ }
 
         let marksChart, difficultyChart, topicChart;
         let tsTopic, tsSubtopic, tsDifficulty, tsPaper, tsYear;
@@ -1133,6 +1157,9 @@
 
             const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
             if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            syncPageSizeControl();
+            updateShowingRange(totalPages);
 
             const start = (currentPage - 1) * itemsPerPage;
             const pageData = filteredData.slice(start, start + itemsPerPage);
@@ -1305,6 +1332,34 @@
         }
 
         function changePage(dir) { currentPage += dir; renderCards(); document.getElementById('feed-container').scrollTo({top: 0, behavior: 'smooth'}); }
+
+        // Page-size selector. Jumps back to page 1 so the user isn't stranded past the
+        // new last page, and remembers the choice for next visit.
+        function changePageSize(value) {
+            itemsPerPage = (value === 'all') ? ALL_PER_PAGE : (parseInt(value, 10) || 12);
+            currentPage = 1;
+            try { localStorage.setItem(PAGE_SIZE_KEY, value); } catch (e) { /* non-fatal */ }
+            renderCards();
+            document.getElementById('feed-container').scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // "Showing 1-24 of 494 questions" -- so it's clear what the page size is doing.
+        function updateShowingRange(totalPages) {
+            const el = document.getElementById('showing-range');
+            if (!el) return;
+            const total = filteredData.length;
+            if (total === 0) { el.innerText = 'No questions match the current filters'; return; }
+            const start = (currentPage - 1) * itemsPerPage + 1;
+            const end = Math.min(total, currentPage * itemsPerPage);
+            const pageNote = totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : '';
+            el.innerText = `Showing ${start}–${end} of ${total} question${total === 1 ? '' : 's'}${pageNote}`;
+        }
+
+        // Keeps the select showing the active value (e.g. after a saved preference loads).
+        function syncPageSizeControl() {
+            const sel = document.getElementById('page-size');
+            if (sel) sel.value = (itemsPerPage >= ALL_PER_PAGE) ? 'all' : String(itemsPerPage);
+        }
 
         // --- QUESTION ORDER (reordering selected questions before export) ---
         function renderOrderList(reset = false) {
