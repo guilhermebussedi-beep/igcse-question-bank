@@ -181,7 +181,7 @@
                 <!-- Search -->
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                    <input type="text" id="search-input" oninput="handleSearch(event)" placeholder="Search keywords, equations, LaTeX, or paste a Question ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white hover:bg-white shadow-sm">
+                    <input type="text" id="search-input" oninput="handleSearch(event)" placeholder="Search topics, words, LaTeX, or paste a Question ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white hover:bg-white shadow-sm">
                 </div>
 
                 <!-- Filters -->
@@ -596,6 +596,7 @@
         let hlIncluded = false; // whether the HL question set is merged on top of the SL set (IB only)
         let flaggingQuestionId = null; // question currently open in the Flag an Issue modal
         let searchQuery = "";
+        let searchTerms = [];   // searchQuery split into words; all must match
         let currentPage = 1;
         // How many question cards to show per page. "All" is stored as a large finite
         // number rather than Infinity, so the page-offset arithmetic below stays valid.
@@ -848,7 +849,7 @@
         function resetForNewBoard() {
             allData = []; dataMap = new Map(); filteredData = [];
             selectedIds = new Set(); selectionOrder = []; originalOrderSnapshot = [];
-            searchQuery = ""; currentPage = 1;
+            searchQuery = ""; searchTerms = []; currentPage = 1;
 
             const searchInput = document.getElementById('search-input');
             if (searchInput) searchInput.value = '';
@@ -1053,13 +1054,67 @@
         function clearAllFilters() {
             tsTopic.clear(false); tsSubtopic.clear(false); tsDifficulty.clear(false);
             tsPaper.clear(false); tsYear.clear(false);
-            document.getElementById('search-input').value = ""; searchQuery = "";
+            document.getElementById('search-input').value = ""; searchQuery = ""; searchTerms = [];
             updateSubTopics([]); filterData();
         }
 
         function handleSearch(event) {
             searchQuery = event.target.value.toLowerCase().trim();
+            searchTerms = searchQuery.split(/\s+/).filter(Boolean);
             filterData();
+        }
+
+        // A question's LaTeX says "\dfrac" where a teacher searches for "fraction", and
+        // "\begin{pmatrix}" where they search for "vector". These map the notation onto the
+        // words people actually type, so the search box matches intent rather than markup.
+        // (No /g flags -- a global regex keeps lastIndex between .test() calls and would
+        // silently skip every other question.)
+        const LATEX_SEARCH_TERMS = [
+            [/\\[dt]?frac|\\cfrac/,        'fraction fractions'],
+            [/\\sqrt/,                     'square root surd surds radical'],
+            [/\\pi\b/,                     'pi'],
+            [/\\times|\\cdot/,             'multiply product'],
+            [/\\div/,                      'divide division'],
+            [/\\pm/,                       'plus minus'],
+            [/\\l[et]\b|\\g[et]\b|\\leq|\\geq|<|>/, 'inequality inequalities'],
+            [/\\ne\b|\\neq/,               'not equal'],
+            [/\\sin|\\cos|\\tan/,          'trigonometry trig sine cosine tangent'],
+            [/\\log/,                      'logarithm logarithms log'],
+            [/\\sum/,                      'sum series'],
+            [/\\int\b/,                    'integral integration'],
+            [/\\infty/,                    'infinity'],
+            [/\\theta|\\alpha|\\beta/,     'angle'],
+            [/\^\\circ|\\circ\b/,          'degrees angle angles'],
+            [/\\angle/,                    'angle angles'],
+            [/\\triangle/,                 'triangle'],
+            [/\\begin\{pmatrix\}|\\overrightarrow|\\vec\b/, 'vector vectors matrix column'],
+            [/\\cap/,                      'intersection set sets venn'],
+            [/\\cup/,                      'union set sets venn'],
+            [/\\mathcal\{u\}|\\varnothing|\\emptyset/, 'set sets venn universal'],
+            [/\\begin\{tikzpicture\}/,     'diagram figure graph sketch'],
+            [/\\begin\{tabular\}|\\begin\{array\}/, 'table'],
+            [/\^\{?2\}?/,                  'squared square'],
+            [/\^\{?3\}?/,                  'cubed cube'],
+            [/\\dotfill/,                  ''],
+        ];
+
+        // Builds the single lowercase string the search box matches against. Cached per
+        // question (q._search) so typing stays instant even with every card on one page.
+        function buildSearchText(q) {
+            const latex = getLatex(q) || '';
+            let keywords = '';
+            for (const [re, words] of LATEX_SEARCH_TERMS) {
+                if (words && re.test(latex)) keywords += ' ' + words;
+            }
+            // Drop the LaTeX scaffolding so prose words aren't glued to commands, but keep
+            // the raw source too -- someone who searches "\dfrac" directly should still win.
+            const prose = latex.replace(/\\[a-zA-Z]+\*?/g, ' ').replace(/[{}$\\[\]]/g, ' ');
+            return [
+                q.id || '',
+                getTopic(q), (getSubtopics(q) || []).join(' '),
+                getYear(q), getPaper(q),
+                prose, latex, getMarkScheme(q) || '', keywords
+            ].join(' ').toLowerCase().replace(/\s+/g, ' ');
         }
 
         function filterData() {
@@ -1083,13 +1138,11 @@
                 const matchPaper = papers.length === 0 || papers.some(p => qPaperStr.startsWith(p.replace(/\D/g, '')));
                 const matchYear = years.length === 0 || years.includes(qYear);
 
-                const rawLatex = getLatex(q).toLowerCase();
-                const markScheme = getMarkScheme(q).toLowerCase();
-                const qId = (q.id || '').toLowerCase();
-                const matchSearch = searchQuery === "" ||
-                                    qId.includes(searchQuery) ||
-                                    rawLatex.includes(searchQuery) || markScheme.includes(searchQuery) ||
-                                    qTopic.toLowerCase().includes(searchQuery) || qSubtopics.some(st => st.toLowerCase().includes(searchQuery));
+                // Every searchable term for this question, built once at load time.
+                const haystack = q._search || (q._search = buildSearchText(q));
+                // All words must appear, in any order: "vector magnitude" finds a question
+                // containing both, even when they're paragraphs apart.
+                const matchSearch = searchTerms.length === 0 || searchTerms.every(t => haystack.includes(t));
 
                 return matchTopic && matchSubtopic && matchDiff && matchPaper && matchYear && matchSearch;
             });
