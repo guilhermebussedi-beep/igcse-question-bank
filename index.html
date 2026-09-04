@@ -1163,11 +1163,28 @@
             // with no questions yet -- the dropdown is meant to mirror the specification, not
             // just the current contents of the sheet. Anything tagged in the sheet but absent
             // from the syllabus list is appended too, so no question is ever unreachable.
+            // A chosen topic offers its OWN subtopics only. A question can carry a second skill
+            // from another topic (a Mensuration question that also uses Pythagoras, say), but
+            // listing E7.1 under Mensuration reads as a mis-tag, so those are reachable with the
+            // topic filter cleared instead.
             const syllabusSubs = (!selectedTopics || selectedTopics.length === 0)
                 ? SYLLABUS.map(r => r[1])
                 : selectedTopics.flatMap(t => SUBTOPICS_BY_TOPIC[t] || []);
-            const taggedSubs = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean);
-            const relevantSubTopics = [...new Set([...syllabusSubs, ...taggedSubs])].sort(subtopicSort);
+
+            // Safety net: a tag the syllabus list has never heard of still gets offered, so a
+            // typo or a newly invented subtopic can never strand its questions.
+            const knownSubs = new Set(SYLLABUS.map(r => r[1]));
+            const unknownTags = [...new Set(pool.flatMap(q => getSubtopics(q)))]
+                .filter(st => st && !knownSubs.has(st));
+
+            // Only offer subtopics that actually have questions -- a syllabus point with nothing
+            // tagged to it is dropped rather than sitting in the dropdown leading to an empty
+            // result. Recomputed from the data on every load, so the moment a question is tagged
+            // with a missing subtopic it starts appearing on its own, with no code change.
+            const subsWithQuestions = new Set(allData.flatMap(q => getSubtopics(q)));
+            const relevantSubTopics = [...new Set([...syllabusSubs, ...unknownTags])]
+                .filter(st => subsWithQuestions.has(st))
+                .sort(subtopicSort);
 
             tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
             const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
