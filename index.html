@@ -1169,17 +1169,7 @@
             const taggedSubs = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean);
             const relevantSubTopics = [...new Set([...syllabusSubs, ...taggedSubs])].sort(subtopicSort);
 
-            // How many questions carry each subtopic WITHIN the current topic selection, so
-            // empty parts of the syllabus are visible at a glance rather than looking like a
-            // broken filter, and a subtopic borrowed from another topic shows how many of
-            // THESE questions touch it rather than a misleading bank-wide total.
-            const subCounts = {};
-            pool.forEach(q => getSubtopics(q).forEach(st => { subCounts[st] = (subCounts[st] || 0) + 1; }));
-
-            tsSubtopic.setOptions(relevantSubTopics.map(st => ({
-                value: st,
-                text: `${st} \u00b7 ${subCounts[st] || 0}`
-            })));
+            tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
             const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
             tsSubtopic.setValue(validSelections, false);
         }
