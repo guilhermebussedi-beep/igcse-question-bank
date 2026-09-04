@@ -59,7 +59,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 m-4 fade-in">
             <div class="text-center mb-8">
                 <div class="flex justify-center mb-4">
-                    <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-20 w-auto object-contain">
+                    <img src="images/logo.png" alt="Logo" class="h-20 w-auto object-contain">
                 </div>
                 <h1 class="text-2xl font-bold text-slate-800">Question Bank Portal</h1>
                 <p class="text-sm text-slate-500 mt-2">Sign in to access assessments and solutions.</p>
@@ -95,7 +95,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 m-4 fade-in">
             <div class="text-center mb-8">
                 <div class="flex justify-center mb-4">
-                    <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-16 w-auto object-contain">
+                    <img src="images/logo.png" alt="Logo" class="h-16 w-auto object-contain">
                 </div>
                 <h1 class="text-2xl font-bold text-slate-800">Choose Your Syllabus</h1>
                 <p id="course-select-subtitle" class="text-sm text-slate-500 mt-2">Select which question bank you'd like to browse.</p>
@@ -144,7 +144,7 @@
             <div class="p-4 border-b border-slate-100 bg-indigo-600 text-white flex justify-between items-center">
                 <div class="flex flex-col items-start">
                     <button onclick="goHome()" class="focus:outline-none hover:opacity-80 transition-opacity" title="Go to Home">
-                        <img src="https://i.ibb.co/sdw36BJj/Gemini-Generated-Image-f1sn97f1sn97f1sn.png" alt="Logo" class="h-10 w-auto object-contain">
+                        <img src="images/logo.png" alt="Logo" class="h-10 w-auto object-contain">
                     </button>
                     <div class="flex gap-1.5 mt-1">
                         <p id="user-role-badge" class="text-[10px] font-bold uppercase tracking-widest text-indigo-200 bg-indigo-800/50 inline-block px-2 py-0.5 rounded">Role</p>
@@ -441,6 +441,98 @@
             });
             return [...new Set(vals)];
         };
+        // ---- The full 0607 Extended syllabus -------------------------------------------
+        // Every topic and subtopic in the specification, in syllabus order. The filters are
+        // built from THIS list, not from whatever happens to be tagged in the sheet, so a
+        // subtopic with no questions yet still appears (and shows a count of 0) instead of
+        // silently vanishing from the dropdown.
+        const SYLLABUS = [
+            // 1 Number
+            ['Number', 'E1.1 Types of number'],
+            ['Number', 'E1.2 Sets'],
+            ['Number', 'E1.3 Powers and roots'],
+            ['Number', 'E1.4 Fractions, decimals and percentages'],
+            ['Number', 'E1.5 Ordering'],
+            ['Number', 'E1.6 The four operations'],
+            ['Number', 'E1.7 Indices I'],
+            ['Number', 'E1.8 Standard form'],
+            ['Number', 'E1.9 Estimation'],
+            ['Number', 'E1.10 Ratio and proportion'],
+            ['Number', 'E1.11 Rates'],
+            ['Number', 'E1.12 Percentages'],
+            ['Number', 'E1.13 Using a calculator'],
+            ['Number', 'E1.14 Time'],
+            ['Number', 'E1.15 Money'],
+            ['Number', 'E1.16 Exponential growth and decay'],
+            ['Number', 'E1.17 Surds'],
+            // 2 Algebra
+            ['Algebra', 'E2.1 Introduction to algebra'],
+            ['Algebra', 'E2.2 Algebraic manipulation'],
+            ['Algebra', 'E2.3 Algebraic fractions'],
+            ['Algebra', 'E2.4 Indices II'],
+            ['Algebra', 'E2.5 Equations'],
+            ['Algebra', 'E2.6 Inequalities'],
+            ['Algebra', 'E2.7 Sequences'],
+            ['Algebra', 'E2.8 Proportion'],
+            // 3 Functions
+            ['Functions', 'E3.1 Graphs of functions'],
+            ['Functions', 'E3.2 Sketching graphs on a calculator'],
+            ['Functions', 'E3.3 Functions'],
+            ['Functions', 'E3.4 Finding a quadratic function using given information'],
+            ['Functions', 'E3.5 Asymptotes'],
+            ['Functions', 'E3.6 Transforming graphs of functions'],
+            ['Functions', 'E3.7 The logarithmic function'],
+            // 4 Coordinate geometry
+            ['Coordinate geometry', 'E4.1 Coordinates'],
+            ['Coordinate geometry', 'E4.2 Gradient of linear graphs'],
+            ['Coordinate geometry', 'E4.3 Length and midpoint'],
+            ['Coordinate geometry', 'E4.4 Equations of linear graphs'],
+            ['Coordinate geometry', 'E4.5 Parallel lines'],
+            ['Coordinate geometry', 'E4.6 Perpendicular lines'],
+            // 5 Geometry
+            ['Geometry', 'E5.1 Geometrical terms'],
+            ['Geometry', 'E5.2 Angle measurement in degrees'],
+            ['Geometry', 'E5.3 Similarity'],
+            ['Geometry', 'E5.4 Symmetry'],
+            ['Geometry', 'E5.5 Angles'],
+            ['Geometry', 'E5.6 Circle theorems I'],
+            ['Geometry', 'E5.7 Circle theorems II'],
+            // 6 Mensuration
+            ['Mensuration', 'E6.1 Units of measure'],
+            ['Mensuration', 'E6.2 Area and perimeter'],
+            ['Mensuration', 'E6.3 Circles, arcs and sectors'],
+            ['Mensuration', 'E6.4 Surface area and volume'],
+            ['Mensuration', 'E6.5 Compound shapes and parts of shapes'],
+            // 7 Trigonometry
+            ['Trigonometry', 'E7.1 Pythagoras\' theorem'],
+            ['Trigonometry', 'E7.2 Right-angled triangles'],
+            ['Trigonometry', 'E7.3 Exact trigonometric values'],
+            ['Trigonometry', 'E7.4 Trigonometric functions'],
+            ['Trigonometry', 'E7.5 Non-right-angled triangles'],
+            ['Trigonometry', 'E7.6 Pythagoras\' theorem and trigonometry in 3D'],
+            // 8 Transformations and vectors
+            ['Transformations and vectors', 'E8.1 Transformations'],
+            ['Transformations and vectors', 'E8.2 Vectors in two dimensions'],
+            ['Transformations and vectors', 'E8.3 Magnitude of a vector'],
+            // 9 Probability
+            ['Probability', 'E9.1 Introduction to probability'],
+            ['Probability', 'E9.2 Relative and expected frequencies'],
+            ['Probability', 'E9.3 Probability of combined events'],
+            // 10 Statistics
+            ['Statistics', 'E10.1 Classifying statistical data'],
+            ['Statistics', 'E10.2 Interpreting statistical data'],
+            ['Statistics', 'E10.3 Discrete and continuous data'],
+            ['Statistics', 'E10.4 Averages and measures of spread'],
+            ['Statistics', 'E10.5 Averages on a calculator'],
+            ['Statistics', 'E10.6 Statistical charts and diagrams'],
+            ['Statistics', 'E10.7 Scatter diagrams'],
+            ['Statistics', 'E10.8 Cumulative frequency diagrams'],
+        ];
+        const SYLLABUS_TOPICS = [...new Set(SYLLABUS.map(r => r[0]))];
+        const SUBTOPICS_BY_TOPIC = SYLLABUS.reduce((acc, [t, s]) => {
+            (acc[t] = acc[t] || []).push(s); return acc;
+        }, {});
+
         // Syllabus order for the topic dropdown (0607 section order, not alphabetical).
         const TOPIC_ORDER = ['Number', 'Algebra', 'Functions', 'Coordinate geometry', 'Geometry',
             'Mensuration', 'Trigonometry', 'Transformations and vectors', 'Probability', 'Statistics'];
@@ -1039,7 +1131,11 @@
         }
 
         function populateInitialDropdowns() {
-            const topics = [...new Set(allData.map(q => getTopic(q)))].filter(Boolean).sort(topicSort);
+            // Every syllabus topic is offered, whether or not it currently has questions;
+            // anything unexpected found in the sheet is appended so it can never become
+            // unreachable.
+            const dataTopics = [...new Set(allData.map(q => getTopic(q)))].filter(Boolean);
+            const topics = [...new Set([...SYLLABUS_TOPICS, ...dataTopics])].sort(topicSort);
             const years = [...new Set(allData.map(q => getYear(q)))].filter(Boolean).sort();
             const papers = [...new Set(allData.map(q => getPaper(q)))].filter(Boolean).sort();
 
@@ -1063,12 +1159,27 @@
                 ? allData
                 : allData.filter(q => { const t = getTopic(q); return t && selectedTopics.includes(t); });
 
-            // A question can list several subtopics -- flatten them all together, then de-dupe,
-            // so each distinct subtopic appears exactly once in the filter regardless of how many
-            // questions (or how many subtopic columns on one question) mention it.
-            const relevantSubTopics = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean).sort(subtopicSort);
+            // Show every subtopic the syllabus defines for the chosen topic(s), even the ones
+            // with no questions yet -- the dropdown is meant to mirror the specification, not
+            // just the current contents of the sheet. Anything tagged in the sheet but absent
+            // from the syllabus list is appended too, so no question is ever unreachable.
+            const syllabusSubs = (!selectedTopics || selectedTopics.length === 0)
+                ? SYLLABUS.map(r => r[1])
+                : selectedTopics.flatMap(t => SUBTOPICS_BY_TOPIC[t] || []);
+            const taggedSubs = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean);
+            const relevantSubTopics = [...new Set([...syllabusSubs, ...taggedSubs])].sort(subtopicSort);
 
-            tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
+            // How many questions carry each subtopic WITHIN the current topic selection, so
+            // empty parts of the syllabus are visible at a glance rather than looking like a
+            // broken filter, and a subtopic borrowed from another topic shows how many of
+            // THESE questions touch it rather than a misleading bank-wide total.
+            const subCounts = {};
+            pool.forEach(q => getSubtopics(q).forEach(st => { subCounts[st] = (subCounts[st] || 0) + 1; }));
+
+            tsSubtopic.setOptions(relevantSubTopics.map(st => ({
+                value: st,
+                text: `${st} \u00b7 ${subCounts[st] || 0}`
+            })));
             const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
             tsSubtopic.setValue(validSelections, false);
         }
