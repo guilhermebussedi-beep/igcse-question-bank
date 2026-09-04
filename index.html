@@ -441,6 +441,28 @@
             });
             return [...new Set(vals)];
         };
+        // Syllabus order for the topic dropdown (0607 section order, not alphabetical).
+        const TOPIC_ORDER = ['Number', 'Algebra', 'Functions', 'Coordinate geometry', 'Geometry',
+            'Mensuration', 'Trigonometry', 'Transformations and vectors', 'Probability', 'Statistics'];
+        const topicSort = (a, b) => {
+            const ia = TOPIC_ORDER.indexOf(a), ib = TOPIC_ORDER.indexOf(b);
+            if (ia !== -1 && ib !== -1) return ia - ib;
+            if (ia !== -1) return -1;
+            if (ib !== -1) return 1;
+            return String(a).localeCompare(String(b));
+        };
+        // Sort subtopics by their syllabus code numerically, so E1.2 comes before E1.11
+        // (a plain .sort() compares them as text and puts "E1.11" before "E1.2").
+        const subtopicSort = (a, b) => {
+            const ma = /^E(\d+)\.(\d+)/.exec(String(a).trim());
+            const mb = /^E(\d+)\.(\d+)/.exec(String(b).trim());
+            if (ma && mb) {
+                return (+ma[1] - +mb[1]) || (+ma[2] - +mb[2]) || String(a).localeCompare(String(b));
+            }
+            if (ma) return -1;          // coded subtopics first
+            if (mb) return 1;
+            return String(a).localeCompare(String(b));
+        };
         const getYear = (q) => getVal(q, ['year']);
         const getDifficulty = (q) => getVal(q, ['difficulty']);
         const getMarks = (q) => getVal(q, ['marks']);
@@ -1017,7 +1039,7 @@
         }
 
         function populateInitialDropdowns() {
-            const topics = [...new Set(allData.map(q => getTopic(q)))].filter(Boolean).sort();
+            const topics = [...new Set(allData.map(q => getTopic(q)))].filter(Boolean).sort(topicSort);
             const years = [...new Set(allData.map(q => getYear(q)))].filter(Boolean).sort();
             const papers = [...new Set(allData.map(q => getPaper(q)))].filter(Boolean).sort();
 
@@ -1044,7 +1066,7 @@
             // A question can list several subtopics -- flatten them all together, then de-dupe,
             // so each distinct subtopic appears exactly once in the filter regardless of how many
             // questions (or how many subtopic columns on one question) mention it.
-            const relevantSubTopics = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean).sort();
+            const relevantSubTopics = [...new Set(pool.flatMap(q => getSubtopics(q)))].filter(Boolean).sort(subtopicSort);
 
             tsSubtopic.setOptions(relevantSubTopics.map(st => ({value: st, text: st})));
             const validSelections = currentSelection.filter(val => relevantSubTopics.includes(val));
